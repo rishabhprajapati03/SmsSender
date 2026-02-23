@@ -2,7 +2,7 @@ import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
-import SettingsScreen from '../screens/SettingsScreen';
+import ImprovedSettingsScreen from '../screens/ImprovedSettingsScreen';
 
 import DashboardStack from './DashboardStack';
 import MessagesStack from './MessagesStack';
@@ -55,7 +55,7 @@ export default function TabNavigator() {
           options={{ title: 'Messages' }}
         />
 
-        <Tab.Screen name="Settings" component={SettingsScreen} />
+        <Tab.Screen name="Settings" component={ImprovedSettingsScreen} />
       </Tab.Navigator>
     </NavigationContainer>
   );

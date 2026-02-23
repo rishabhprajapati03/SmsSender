@@ -8,10 +8,9 @@ import {
   ActivityIndicator,
 } from 'react-native';
 
-import { getQueue, QueuedSms } from '../utils/smsQueue';
+import { getQueue, subscribeToQueue, type QueuedSms } from '../services/queue/queueManager';
 
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import { subscribeQueue } from '../utils/smsQueue';
 
 /* =========================
    Screen
@@ -22,8 +21,9 @@ export default function MessagesScreen() {
   const [loading, setLoading] = useState(true);
 
   const navigation = useNavigation<any>();
+
   useEffect(() => {
-    const unsub = subscribeQueue(load);
+    const unsub = subscribeToQueue(load);
 
     return unsub;
   }, []);
@@ -104,17 +104,36 @@ export default function MessagesScreen() {
             </Text>
 
             <View style={styles.footer}>
-              <Text style={styles.status}>{item.status.toUpperCase()}</Text>
+              <Text style={[styles.status, getStatusStyle(item.status)]}>
+                {item.status.toUpperCase()}
+              </Text>
 
               <Text style={styles.time}>
                 {new Date(item.timestamp).toLocaleString()}
               </Text>
             </View>
+
+            {item.retryCount > 0 && (
+              <Text style={styles.retry}>Retry: {item.retryCount}</Text>
+            )}
           </TouchableOpacity>
         )}
       />
     </View>
   );
+}
+
+function getStatusStyle(status: string) {
+  switch (status) {
+    case 'sent':
+      return { color: '#4CAF50' };
+    case 'failed':
+      return { color: '#F44336' };
+    case 'syncing':
+      return { color: '#2196F3' };
+    default:
+      return { color: '#666' };
+  }
 }
 
 /* =========================
@@ -162,11 +181,16 @@ const styles = StyleSheet.create({
   status: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#444',
   },
 
   time: {
     fontSize: 11,
     color: '#777',
+  },
+
+  retry: {
+    fontSize: 10,
+    color: '#FF9800',
+    marginTop: 4,
   },
 });

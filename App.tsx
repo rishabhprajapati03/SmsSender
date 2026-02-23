@@ -1,71 +1,47 @@
-import React, { useEffect } from 'react';
-
-import BackgroundFetch from 'react-native-background-fetch';
-
+import React, { useEffect, useState } from 'react';
+import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 import TabNavigator from './src/navigation/TabNavigator';
-
-import { syncQueue } from './src/services/syncService';
-import { ensureAllPermissions } from './src/services/permissions/permissionService';
-import { getDutyState } from './src/services/dutyState';
-import { startDuty } from './src/services/dutyService';
+import { initializeApp } from './src/services/app/appInitializer';
 
 export default function App() {
+  const [isInitializing, setIsInitializing] = useState(true);
+
   useEffect(() => {
-    init();
-
-    async function init() {
-      await ensureAllPermissions();
-
-      const wasOnDuty = await getDutyState();
-
-      if (wasOnDuty) {
-        await startDuty();
-      }
-
-      await initBackground();
-    }
+    initialize();
   }, []);
 
-  async function initBackground() {
+  async function initialize() {
     try {
-      const status = await BackgroundFetch.configure(
-        {
-          stopOnTerminate: false,
-          startOnBoot: true,
-
-          enableHeadless: true,
-
-          requiredNetworkType: BackgroundFetch.NETWORK_TYPE_ANY,
-
-          requiresCharging: false,
-          requiresBatteryNotLow: false,
-          requiresDeviceIdle: false,
-
-          forceAlarmManager: false, // WorkManager
-        },
-
-        async taskId => {
-          console.log('[BG]', taskId);
-
-          try {
-            await syncQueue();
-          } finally {
-            BackgroundFetch.finish(taskId);
-          }
-        },
-
-        error => {
-          console.log('BG CONFIG ERROR:', error);
-        },
-      );
-
-      console.log('BG STATUS:', status);
-
-      await BackgroundFetch.start();
-    } catch (e) {
-      console.log('BG INIT FAILED:', e);
+      await initializeApp();
+    } catch (error) {
+      console.error('[App] Init error:', error);
+    } finally {
+      setIsInitializing(false);
     }
+  }
+
+  if (isInitializing) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color="#2196F3" />
+        <Text style={styles.text}>Initializing...</Text>
+      </View>
+    );
   }
 
   return <TabNavigator />;
 }
+
+const styles = StyleSheet.create({
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+  },
+  text: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#666',
+  },
+});

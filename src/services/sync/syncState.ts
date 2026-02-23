@@ -1,37 +1,37 @@
-type SyncState = 'idle' | 'syncing' | 'error';
+export type SyncState = 'idle' | 'syncing' | 'error';
 
 let state: SyncState = 'idle';
 let lastError: string | null = null;
 
 const listeners = new Set<Function>();
 
-export function setSyncing() {
-  state = 'syncing';
+export function setSyncState(newState: SyncState, error?: string) {
+  state = newState;
+
+  if (newState === 'error' && error) {
+    lastError = error;
+  } else if (newState === 'idle') {
+    lastError = null;
+  }
+
   notify();
 }
 
-export function setIdle() {
-  state = 'idle';
-  lastError = null;
-  notify();
-}
-
-export function setError(err: string) {
-  state = 'error';
-  lastError = err;
-  notify();
-}
-
-export function getSyncState() {
+export function getSyncState(): { state: SyncState; lastError: string | null } {
   return { state, lastError };
 }
 
-export function subscribe(fn: Function) {
+export function subscribeToSyncState(fn: Function): () => void {
   listeners.add(fn);
-
   return () => listeners.delete(fn);
 }
 
 function notify() {
-  listeners.forEach(fn => fn());
+  listeners.forEach(fn => {
+    try {
+      fn();
+    } catch (e) {
+      console.error('Sync state listener error:', e);
+    }
+  });
 }

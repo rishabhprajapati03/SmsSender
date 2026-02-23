@@ -1,23 +1,22 @@
 import { AppRegistry } from 'react-native';
-
+import BackgroundFetch from 'react-native-background-fetch';
 import App from './App';
 import { name as appName } from './app.json';
-
-import BackgroundFetch from 'react-native-background-fetch';
-
-import { syncQueue } from './src/services/syncService';
+import { syncQueue } from './src/services/sync/syncManager';
 
 AppRegistry.registerComponent(appName, () => App);
 
-// Headless task (app killed)
-BackgroundFetch.registerHeadlessTask(async event => {
-  console.log('[HEADLESS]', event.taskId);
+// Headless task for background sync
+BackgroundFetch.registerHeadlessTask(async (event) => {
+  const taskId = event.taskId;
+  console.log('[Headless] Task started:', taskId);
 
   try {
     await syncQueue();
-  } catch (e) {
-    console.log('HEADLESS ERROR:', e);
+    console.log('[Headless] Task completed');
+  } catch (error) {
+    console.error('[Headless] Task failed:', error);
   } finally {
-    BackgroundFetch.finish(event.taskId);
+    BackgroundFetch.finish(taskId);
   }
 });

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { getStats, invalidateStatsCache } from '../services/stats/statsService';
-import { subscribeQueue } from '../utils/smsQueue';
+import { subscribeToQueue } from '../services/queue/queueManager';
 
 export function useSyncStats() {
   const [stats, setStats] = useState<any>(null);
@@ -16,7 +16,7 @@ export function useSyncStats() {
   useEffect(() => {
     load();
 
-    const unsub = subscribeQueue(load);
+    const unsub = subscribeToQueue(load);
 
     return unsub;
   }, []);

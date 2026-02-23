@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 
 import { useRoute } from '@react-navigation/native';
 
-import { getQueue, QueuedSms } from '../utils/smsQueue';
+import { getQueue, type QueuedSms } from '../services/queue/queueManager';
 
 /* =========================
    Types
@@ -84,8 +84,21 @@ export default function SmsDetailScreen() {
 
       <Text style={styles.status}>Status: {sms.status}</Text>
 
+      {sms.retryCount > 0 && (
+        <Text style={styles.retry}>Retry Count: {sms.retryCount}</Text>
+      )}
+
       {sms.lastError && (
-        <Text style={styles.error}>Error: {sms.lastError}</Text>
+        <View style={styles.errorBox}>
+          <Text style={styles.errorTitle}>Error:</Text>
+          <Text style={styles.error}>{sms.lastError}</Text>
+        </View>
+      )}
+
+      {sms.syncedAt && (
+        <Text style={styles.info}>
+          Synced: {new Date(sms.syncedAt).toLocaleString()}
+        </Text>
       )}
     </View>
   );
@@ -99,6 +112,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 16,
+    backgroundColor: '#fff',
   },
 
   center: {
@@ -116,6 +130,7 @@ const styles = StyleSheet.create({
   body: {
     fontSize: 16,
     marginBottom: 20,
+    lineHeight: 24,
   },
 
   time: {
@@ -130,8 +145,32 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
 
-  error: {
-    color: 'red',
+  retry: {
+    fontSize: 12,
+    color: '#FF9800',
+    marginBottom: 8,
+  },
+
+  info: {
+    fontSize: 12,
+    color: '#4CAF50',
+    marginBottom: 8,
+  },
+
+  errorBox: {
+    backgroundColor: '#FFEBEE',
+    padding: 12,
+    borderRadius: 4,
     marginTop: 8,
+  },
+
+  errorTitle: {
+    fontWeight: 'bold',
+    color: '#C62828',
+    marginBottom: 4,
+  },
+
+  error: {
+    color: '#C62828',
   },
 });
