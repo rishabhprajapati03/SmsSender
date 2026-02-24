@@ -14,9 +14,9 @@ import SettingsStack from './SettingsStack';
 /* TYPES */
 
 type TabParamList = {
-  DashboardTab: undefined;
-  MessagesTab: undefined;
-  SettingsTab: undefined;
+  Dashboard: undefined;
+  Messages: undefined;
+  Settings: undefined;
 };
 
 const Tab = createBottomTabNavigator<TabParamList>();
@@ -27,12 +27,12 @@ const linking: LinkingOptions<TabParamList> = {
   prefixes: ['myapp://'],
   config: {
     screens: {
-      DashboardTab: {
+      Dashboard: {
         screens: {
           Dashboard: 'dashboard',
         },
       },
-      MessagesTab: {
+      Messages: {
         screens: {
           Messages: 'messages',
           SmsDetail: 'sms/:id',
@@ -52,7 +52,7 @@ const getTabIcon = (
   size: number,
 ) => {
   switch (routeName) {
-    case 'DashboardTab':
+    case 'Dashboard':
       return (
         <Ionicons
           name={focused ? 'home' : 'home-outline'}
@@ -61,7 +61,7 @@ const getTabIcon = (
         />
       );
 
-    case 'MessagesTab':
+    case 'Messages':
       return (
         <Ionicons
           name={focused ? 'chatbubble' : 'chatbubble-outline'}
@@ -105,19 +105,19 @@ export default function TabNavigator() {
     <NavigationContainer linking={linking}>
       <Tab.Navigator>
         <Tab.Screen
-          name="DashboardTab"
+          name="Dashboard"
           component={DashboardStack}
-          options={buildScreenOptions('DashboardTab')}
+          options={buildScreenOptions('Dashboard')}
         />
 
         <Tab.Screen
-          name="MessagesTab"
+          name="Messages"
           component={MessagesStack}
-          options={buildScreenOptions('MessagesTab')}
+          options={buildScreenOptions('Messages')}
         />
 
         <Tab.Screen
-          name="SettingsTab"
+          name="Settings"
           component={SettingsStack}
           options={buildScreenOptions('Settings')}
         />

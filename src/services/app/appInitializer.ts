@@ -3,7 +3,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { initializePermissions } from '../permissions';
 import { initializeBackgroundTasks } from '../background/backgroundTaskManager';
 import { restoreSmsSyncIfNeeded } from '../smsSync/smsSyncManager';
-import { importInbox } from '../sms/smsImporter';
 
 const APP_INIT_KEY = 'APP_INITIALIZED_V1';
 
@@ -36,7 +35,6 @@ export async function initializeApp(): Promise<void> {
     await initializeBackgroundTasks();
 
     // Non-blocking (safe async)
-    importInbox(500).catch(e => console.error('[App] Inbox import failed:', e));
 
     restoreSmsSyncIfNeeded().catch(e =>
       console.error('[App] SmsSync restore failed:', e),
