@@ -5,9 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const INBOX_COUNT_KEY = 'inbox_count';
 const LAST_IMPORTED_TS_KEY = 'last_imported_timestamp';
 
-/* ===============================
-   IMPORT
-================================ */
+/*    IMPORT */
 
 export async function importInbox(limit = 500): Promise<number> {
   try {
@@ -57,9 +55,7 @@ export async function importInbox(limit = 500): Promise<number> {
   }
 }
 
-/* ===============================
-   COUNT
-================================ */
+/*    COUNT */
 
 export async function getInboxCount(): Promise<number> {
   try {

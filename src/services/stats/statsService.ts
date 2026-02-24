@@ -16,9 +16,7 @@ export interface SyncStats {
 const SYNC_META_KEY = 'sync_metadata';
 const INBOX_COUNT_KEY = 'inbox_count';
 
-/* ===============================
-   HELPERS
-================================ */
+/* HELPERS */
 
 async function getSyncMeta() {
   try {
@@ -38,9 +36,7 @@ async function getInboxCount(): Promise<number> {
   }
 }
 
-/* ===============================
-   PUBLIC
-================================ */
+/* PUBLIC */
 
 export async function getStats(): Promise<SyncStats> {
   const [queueStats, inboxCount, meta] = await Promise.all([

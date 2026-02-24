@@ -8,9 +8,9 @@ import {
 import { syncQueue } from '../sync/syncManager';
 import { AppConfig } from '../../config';
 
-const DUTY_STATE_KEY = 'duty_state_v2';
+const DUTY_STATE_KEY = 'smsSync_state_v2';
 
-interface DutyState {
+interface SmsSyncState {
   enabled: boolean;
   startedAt: number | null;
 }
@@ -27,26 +27,26 @@ const foregroundOptions = {
   parameters: {},
 };
 
-async function loadDutyState(): Promise<DutyState> {
+async function loadSmsSyncState(): Promise<SmsSyncState> {
   try {
     const data = await AsyncStorage.getItem(DUTY_STATE_KEY);
     if (data) return JSON.parse(data);
   } catch (error) {
-    console.error('[Duty] Load state failed:', error);
+    console.error('[SmsSync] Load state failed:', error);
   }
   return { enabled: false, startedAt: null };
 }
 
-async function saveDutyState(state: DutyState): Promise<void> {
+async function saveSmsSyncState(state: SmsSyncState): Promise<void> {
   try {
     await AsyncStorage.setItem(DUTY_STATE_KEY, JSON.stringify(state));
   } catch (error) {
-    console.error('[Duty] Save state failed:', error);
+    console.error('[SmsSync] Save state failed:', error);
   }
 }
 
-async function dutyTask(): Promise<void> {
-  console.log('[Duty] Task started');
+async function smsSyncTask(): Promise<void> {
+  console.log('[SmsSync] Task started');
 
   if (!isListenerActive()) {
     startSmsListener();
@@ -56,7 +56,7 @@ async function dutyTask(): Promise<void> {
     try {
       await syncQueue();
     } catch (error) {
-      console.error('[Duty] Sync error:', error);
+      console.error('[SmsSync] Sync error:', error);
     }
     await new Promise(resolve =>
       setTimeout(resolve, AppConfig.sync.intervalMs),
@@ -64,75 +64,75 @@ async function dutyTask(): Promise<void> {
   }
 
   stopSmsListener();
-  console.log('[Duty] Task stopped');
+  console.log('[SmsSync] Task stopped');
 }
 
-export async function startDuty(): Promise<void> {
+export async function startSmsSync(): Promise<void> {
   if (isRunning) return;
 
   try {
-    console.log('[Duty] Starting...');
+    console.log('[SmsSync] Starting...');
     isRunning = true;
 
-    await saveDutyState({ enabled: true, startedAt: Date.now() });
-    await BackgroundService.start(dutyTask, foregroundOptions);
+    await saveSmsSyncState({ enabled: true, startedAt: Date.now() });
+    await BackgroundService.start(smsSyncTask, foregroundOptions);
 
-    console.log('[Duty] Started');
+    console.log('[SmsSync] Started');
   } catch (error) {
-    console.error('[Duty] Start failed:', error);
+    console.error('[SmsSync] Start failed:', error);
     isRunning = false;
-    await saveDutyState({ enabled: false, startedAt: null });
+    await saveSmsSyncState({ enabled: false, startedAt: null });
     throw error;
   }
 }
 
-export async function stopDuty(): Promise<void> {
+export async function stopSmsSync(): Promise<void> {
   if (!isRunning) return;
 
   try {
-    console.log('[Duty] Stopping...');
+    console.log('[SmsSync] Stopping...');
     isRunning = false;
 
     await BackgroundService.stop();
     stopSmsListener();
-    await saveDutyState({ enabled: false, startedAt: null });
+    await saveSmsSyncState({ enabled: false, startedAt: null });
 
-    console.log('[Duty] Stopped');
+    console.log('[SmsSync] Stopped');
   } catch (error) {
-    console.error('[Duty] Stop failed:', error);
+    console.error('[SmsSync] Stop failed:', error);
     isRunning = false;
-    await saveDutyState({ enabled: false, startedAt: null });
+    await saveSmsSyncState({ enabled: false, startedAt: null });
   }
 }
 
-export function isDutyRunning(): boolean {
+export function isSmsSyncRunning(): boolean {
   return isRunning && BackgroundService.isRunning();
 }
 
-export async function getDutyState(): Promise<DutyState> {
-  return await loadDutyState();
+export async function getSmsSyncState(): Promise<SmsSyncState> {
+  return await loadSmsSyncState();
 }
 
-export async function restoreDutyIfNeeded(): Promise<boolean> {
-  const state = await loadDutyState();
+export async function restoreSmsSyncIfNeeded(): Promise<boolean> {
+  const state = await loadSmsSyncState();
 
   if (!state.enabled) {
-    console.log('[Duty] Not enabled, skipping restore');
+    console.log('[SmsSync] Not enabled, skipping restore');
     return false;
   }
 
   if (BackgroundService.isRunning()) {
-    console.log('[Duty] Already running');
+    console.log('[SmsSync] Already running');
     isRunning = true;
     return true;
   }
 
-  console.log('[Duty] Restoring...');
+  console.log('[SmsSync] Restoring...');
   try {
-    await startDuty();
+    await startSmsSync();
     return true;
   } catch (error) {
-    console.error('[Duty] Restore failed:', error);
+    console.error('[SmsSync] Restore failed:', error);
     return false;
   }
 }

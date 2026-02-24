@@ -12,14 +12,14 @@ import {
 } from 'react-native';
 
 import {
-  startDuty,
-  stopDuty,
-  getDutyState,
-} from '../services/duty/dutyManager';
+  startSmsSync,
+  stopSmsSync,
+  getSmsSyncState,
+} from '../services/smsSync/smsSyncManager';
 
 import {
-  canStartDutyMode,
-  type PermissionStatus,
+  canStartSmsSyncMode,
+  openBatterySettings,
 } from '../services/permissions';
 
 import { getStats } from '../services/stats/statsService';
@@ -27,17 +27,13 @@ import { subscribeToQueue } from '../services/queue/queueManager';
 import { subscribeToSyncState } from '../services/sync/syncState';
 
 export default function DashboardScreen() {
-  const [dutyEnabled, setDutyEnabled] = useState(false);
+  const [smsSyncEnabled, setSmsSyncEnabled] = useState(false);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<any>(null);
-  const [permissionStatus, setPermissionStatus] =
-    useState<PermissionStatus | null>(null);
 
   const loadingRef = useRef(false);
 
-  /* 
-     LOAD
-   */
+  /* LOAD */
 
   async function loadData() {
     if (loadingRef.current) return;
@@ -45,37 +41,31 @@ export default function DashboardScreen() {
     loadingRef.current = true;
 
     try {
-      const [dutyState, appStats] = await Promise.all([
-        getDutyState(),
+      const [smsSyncState, appStats] = await Promise.all([
+        getSmsSyncState(),
         getStats(),
       ]);
 
-      setDutyEnabled(dutyState.enabled);
+      setSmsSyncEnabled(smsSyncState.enabled);
       setStats(appStats);
-    } catch (error) {
-      console.error('[Dashboard] Load failed:', error);
+    } catch (e) {
+      console.error('[Dashboard] Load failed:', e);
     } finally {
       loadingRef.current = false;
       setLoading(false);
     }
   }
 
-  /* 
-     INIT
-   */
+  /* INIT */
 
   useEffect(() => {
     loadData();
 
-    // Queue updates
     const unsubQueue = subscribeToQueue(loadData);
-
-    // Sync updates
     const unsubSync = subscribeToSyncState(loadData);
 
-    // App foreground refresh
-    const subApp = AppState.addEventListener('change', state => {
-      if (state === 'active') {
+    const appSub = AppState.addEventListener('change', s => {
+      if (s === 'active') {
         loadData();
       }
     });
@@ -83,139 +73,137 @@ export default function DashboardScreen() {
     return () => {
       unsubQueue();
       unsubSync();
-      subApp.remove();
+      appSub.remove();
     };
   }, []);
 
-  /* 
-     DUTY TOGGLE
-   */
+  /*     TOGGLE */
 
-  async function handleDutyToggle(value: boolean) {
+  async function handleToggle(value: boolean) {
     if (value) {
-      const check = await canStartDutyMode();
+      const check = await canStartSmsSyncMode();
 
       if (!check.allowed) {
-        Alert.alert(
-          'Permission Required',
-          check.reason || 'Required permissions are missing',
-          [{ text: 'Cancel', style: 'cancel' }, { text: 'Open Settings' }],
-        );
+        Alert.alert('Setup Required', check.reason || 'Setup incomplete', [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Open Settings',
+            onPress: openBatterySettings,
+          },
+        ]);
         return;
       }
 
-      setPermissionStatus(check.status);
-
       try {
-        await startDuty();
+        await startSmsSync();
         await loadData();
-
-        console.log('[Dashboard] Duty started');
-      } catch (error: any) {
-        Alert.alert('Error', error?.message || 'Failed to start duty');
+      } catch (e: any) {
+        Alert.alert('Error', e?.message || 'Failed to start sync');
       }
     } else {
       try {
-        await stopDuty();
+        await stopSmsSync();
         await loadData();
-
-        console.log('[Dashboard] Duty stopped');
-      } catch (error: any) {
-        Alert.alert('Error', error?.message || 'Failed to stop duty');
+      } catch (e: any) {
+        Alert.alert('Error', e?.message || 'Failed to stop sync');
       }
     }
   }
 
-  /* 
-     LOADING
-   */
+  /*    LOADING */
 
   if (loading) {
     return (
-      <View style={styles.center}>
+      <View>
         <ActivityIndicator size="large" color="#2196F3" />
       </View>
     );
   }
 
-  /* 
-     UI
-   */
+  /*  UI */
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>Dashboard</Text>
-
-      {/* Duty Mode */}
-      <View style={styles.card}>
+      {/* Sync Toggle Card */}
+      <View style={[styles.card, smsSyncEnabled && styles.cardActive]}>
         <View style={styles.row}>
           <View style={styles.flex}>
-            <Text style={styles.cardTitle}>Duty Mode</Text>
-            <Text style={styles.cardSubtitle}>
-              {dutyEnabled ? 'Active - Listening for SMS' : 'Inactive'}
+            <Text style={styles.cardTitle}>SmsSync Service</Text>
+            <Text
+              style={[
+                styles.statusText,
+                { color: smsSyncEnabled ? '#2E7D32' : '#757575' },
+              ]}
+            >
+              ● {smsSyncEnabled ? 'Running' : 'Paused'}
             </Text>
           </View>
 
           <Switch
-            value={dutyEnabled}
-            onValueChange={handleDutyToggle}
-            trackColor={{ false: '#ccc', true: '#4CAF50' }}
-            thumbColor={dutyEnabled ? '#fff' : '#f4f3f4'}
+            value={smsSyncEnabled}
+            onValueChange={handleToggle}
+            trackColor={{ false: '#D1D1D1', true: '#81C784' }}
+            thumbColor={smsSyncEnabled ? '#2E7D32' : '#F4F4F4'}
           />
         </View>
       </View>
 
-      {/* Queue */}
+      {/* Queue Statistics */}
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Queue Status</Text>
-
+        <Text style={styles.sectionLabel}>Queue Activity</Text>
         <View style={styles.statsGrid}>
           <Stat label="Pending" value={stats?.pending} />
           <Stat label="Syncing" value={stats?.syncing} />
-          <Stat label="Sent" value={stats?.sent} color="#4CAF50" />
-          <Stat label="Failed" value={stats?.failed} color="#F44336" />
+          <Stat label="Sent" value={stats?.sent} color="#2E7D32" />
+          <Stat label="Failed" value={stats?.failed} color="#D32F2F" />
         </View>
       </View>
 
-      {/* Sync */}
+      {/* Sync Details */}
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Sync Status</Text>
-
+        <Text style={styles.sectionLabel}>Sync Details</Text>
         <Info
           label="Last Sync"
           value={
             stats?.lastSync
-              ? new Date(stats.lastSync).toLocaleString()
+              ? new Date(stats.lastSync).toLocaleTimeString([], {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })
               : 'Never'
           }
         />
-
-        <Info label="Total Synced" value={stats?.totalQueued} />
+        <Info label="Total Processed" value={stats?.totalQueued || 0} />
 
         {stats?.lastError && (
           <View style={styles.errorBox}>
-            <Text style={styles.errorText}>Error: {stats.lastError}</Text>
+            <Text style={styles.errorText}>{stats.lastError}</Text>
           </View>
         )}
       </View>
 
-      {/* Inbox */}
+      {/* Inbox Summary */}
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Inbox</Text>
-
-        <Info label="Messages" value={stats?.inboxCount} />
+        <View style={styles.inboxRow}>
+          <Text style={styles.cardTitle}>Device Inbox</Text>
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>{stats?.inboxCount || 0} MSGS</Text>
+          </View>
+        </View>
       </View>
-      <Text>Hello</Text>
-      <TouchableOpacity style={styles.refreshButton} onPress={loadData}>
-        <Text style={styles.refreshButtonText}>Refresh</Text>
+
+      <TouchableOpacity
+        style={styles.refreshButton}
+        onPress={loadData}
+        activeOpacity={0.8}
+      >
+        <Text style={styles.refreshButtonText}>Refresh Data</Text>
       </TouchableOpacity>
     </ScrollView>
   );
 }
 
-/*   COMPONENTS
- */
-
+/* COMPONENTS */
 function Stat({
   label,
   value,
@@ -227,7 +215,11 @@ function Stat({
 }) {
   return (
     <View style={styles.statItem}>
-      <Text style={[styles.statValue, color && { color }]}>{value || 0}</Text>
+      <Text
+        style={[styles.statValue, color ? { color } : { color: '#1A1A1A' }]}
+      >
+        {value || 0}
+      </Text>
       <Text style={styles.statLabel}>{label}</Text>
     </View>
   );
@@ -236,50 +228,70 @@ function Stat({
 function Info({ label, value }: { label: string; value: any }) {
   return (
     <View style={styles.infoRow}>
-      <Text style={styles.infoLabel}>{label}:</Text>
+      <Text style={styles.infoLabel}>{label}</Text>
       <Text style={styles.infoValue}>{value}</Text>
     </View>
   );
 }
 
-/* 
-   STYLES
- */
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#F9FAFB',
   },
   content: {
-    padding: 16,
+    padding: 12,
   },
-  center: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+  header: {
+    marginBottom: 24,
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 16,
-    color: '#333',
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#111827',
+    letterSpacing: -0.5,
+  },
+  divider: {
+    height: 4,
+    width: 40,
+    backgroundColor: '#2196F3',
+    marginTop: 8,
+    borderRadius: 2,
   },
   card: {
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 12,
-    elevation: 3,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    shadowColor: '#070505',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  cardActive: {
+    borderColor: '#A5D6A7',
+    backgroundColor: '#F1F8E9',
   },
   cardTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 8,
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#374151',
   },
-  cardSubtitle: {
-    fontSize: 14,
-    color: '#666',
+  sectionLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#9CA3AF',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: 16,
+  },
+  statusText: {
+    fontSize: 13,
+    fontWeight: '500',
+    marginTop: 2,
   },
   row: {
     flexDirection: 'row',
@@ -287,58 +299,80 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   flex: { flex: 1 },
-
   statsGrid: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'space-between',
+    paddingTop: 4,
   },
-
-  statItem: { alignItems: 'center' },
-
+  statItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
   statValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    fontSize: 22,
+    fontWeight: '800',
   },
-
   statLabel: {
-    fontSize: 12,
-    color: '#666',
+    fontSize: 11,
+    color: '#6B7280',
+    marginTop: 4,
+    fontWeight: '500',
   },
-
   infoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
   },
-
-  infoLabel: {
-    color: '#666',
-  },
-
-  infoValue: {
-    fontWeight: '500',
-  },
-
-  errorText: {
-    color: '#F44336',
-  },
-
-  errorBox: {
-    backgroundColor: '#FFEBEE',
-    padding: 8,
-    borderRadius: 4,
-  },
-
-  refreshButton: {
-    backgroundColor: '#2196F3',
-    padding: 16,
-    borderRadius: 8,
+  inboxRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 32,
   },
-
-  refreshButtonText: {
-    color: '#fff',
+  infoLabel: {
+    color: '#6B7280',
+    fontSize: 14,
+  },
+  infoValue: {
     fontWeight: '600',
+    color: '#111827',
+    fontSize: 14,
+  },
+  badge: {
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  badgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#374151',
+  },
+  errorBox: {
+    backgroundColor: '#FEF2F2',
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: '#FEE2E2',
+  },
+  errorText: {
+    color: '#B91C1C',
+    fontSize: 13,
+  },
+  refreshButton: {
+    backgroundColor: '#111827',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 8,
+    marginBottom: 40,
+  },
+  refreshButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+    fontSize: 16,
   },
 });

@@ -8,13 +8,16 @@ import {
   ActivityIndicator,
 } from 'react-native';
 
-import { getQueue, subscribeToQueue, type QueuedSms } from '../services/queue/queueManager';
+import {
+  getQueue,
+  subscribeToQueue,
+  type QueuedSms,
+} from '../services/queue/queueManager';
 
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 
-/* =========================
-   Screen
-========================= */
+/*
+   Screen */
 
 export default function MessagesScreen() {
   const [data, setData] = useState<QueuedSms[]>([]);
@@ -28,9 +31,8 @@ export default function MessagesScreen() {
     return unsub;
   }, []);
 
-  /* =========================
-   Load
-========================= */
+  /*
+   Load */
 
   const load = async () => {
     try {
@@ -47,9 +49,8 @@ export default function MessagesScreen() {
     }
   };
 
-  /* =========================
-   Reload On Focus
-========================= */
+  /*
+   Reload On Focus */
 
   useFocusEffect(
     useCallback(() => {
@@ -57,14 +58,13 @@ export default function MessagesScreen() {
     }, []),
   );
 
-  /* =========================
-   Render
-========================= */
+  /*
+   Render */
 
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" />
+        <ActivityIndicator color="#007AFF" />
       </View>
     );
   }
@@ -72,7 +72,13 @@ export default function MessagesScreen() {
   if (!data.length) {
     return (
       <View style={styles.center}>
-        <Text style={styles.empty}>No messages yet</Text>
+        <View style={styles.emptyCircle}>
+          <Text style={styles.emptyIcon}>✉️</Text>
+        </View>
+        <Text style={styles.emptyTitle}>No messages yet</Text>
+        <Text style={styles.emptySubtitle}>
+          Your synced messages will appear here.
+        </Text>
       </View>
     );
   }
@@ -84,113 +90,211 @@ export default function MessagesScreen() {
         keyExtractor={i => i.id}
         refreshing={loading}
         onRefresh={load}
+        contentContainerStyle={styles.listContent}
         renderItem={({ item }) => (
           <TouchableOpacity
+            activeOpacity={0.7}
             onPress={() =>
               navigation.navigate('MessagesTab', {
                 screen: 'SmsDetail',
-                params: {
-                  sms: item,
-                  id: item.id,
-                },
+                params: { sms: item, id: item.id },
               })
             }
             style={styles.item}
           >
-            <Text style={styles.sender}>{item.sender || 'Unknown'}</Text>
-
-            <Text numberOfLines={1} style={styles.body}>
-              {item.body}
-            </Text>
-
-            <View style={styles.footer}>
-              <Text style={[styles.status, getStatusStyle(item.status)]}>
-                {item.status.toUpperCase()}
-              </Text>
-
-              <Text style={styles.time}>
-                {new Date(item.timestamp).toLocaleString()}
+            {/* Avatar Circle */}
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>
+                {(item.sender || 'U').charAt(0).toUpperCase()}
               </Text>
             </View>
 
-            {item.retryCount > 0 && (
-              <Text style={styles.retry}>Retry: {item.retryCount}</Text>
-            )}
+            <View style={styles.itemBody}>
+              <View style={styles.itemHeader}>
+                <Text style={styles.sender} numberOfLines={1}>
+                  {item.sender || 'Unknown'}
+                </Text>
+                <Text style={styles.time}>
+                  {new Date(item.timestamp).toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </Text>
+              </View>
+
+              <Text numberOfLines={2} style={styles.bodyText}>
+                {item.body}
+              </Text>
+
+              <View style={styles.footer}>
+                <View style={[styles.statusPill, getStatusBg(item.status)]}>
+                  <Text
+                    style={[styles.statusText, getStatusTextStyle(item.status)]}
+                  >
+                    {item.status.toUpperCase()}
+                  </Text>
+                </View>
+
+                {item.retryCount > 0 && (
+                  <View style={styles.retryBadge}>
+                    <Text style={styles.retryText}>
+                      Retry {item.retryCount}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            </View>
           </TouchableOpacity>
         )}
       />
     </View>
   );
 }
-
-function getStatusStyle(status: string) {
+function getStatusTextStyle(status: string) {
   switch (status) {
     case 'sent':
-      return { color: '#4CAF50' };
+      return { color: '#2E7D32' };
     case 'failed':
-      return { color: '#F44336' };
+      return { color: '#D32F2F' };
     case 'syncing':
-      return { color: '#2196F3' };
+      return { color: '#007AFF' };
     default:
       return { color: '#666' };
   }
 }
 
-/* =========================
-   Styles
-========================= */
+function getStatusBg(status: string) {
+  switch (status) {
+    case 'sent':
+      return { backgroundColor: '#E8F5E9' };
+    case 'failed':
+      return { backgroundColor: '#FFEBEE' };
+    case 'syncing':
+      return { backgroundColor: '#E3F2FD' };
+    default:
+      return { backgroundColor: '#F5F5F5' };
+  }
+}
+
+/*
+   Styles */
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#F8F9FA',
   },
-
+  listContent: {
+    paddingVertical: 8,
+  },
   center: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 40,
   },
-
-  empty: {
-    fontSize: 16,
-    color: '#666',
-  },
-
   item: {
-    borderBottomWidth: 1,
-    borderColor: '#eee',
-    padding: 12,
+    flexDirection: 'row',
+    backgroundColor: '#fff',
+    padding: 16,
+    marginHorizontal: 12,
+    marginVertical: 6,
+    borderRadius: 16,
+    // Subtle shadow
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
-
-  sender: {
-    fontWeight: 'bold',
-    marginBottom: 2,
+  avatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#E9ECEF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
   },
-
-  body: {
-    color: '#333',
+  avatarText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#495057',
   },
-
-  footer: {
-    marginTop: 6,
+  itemBody: {
+    flex: 1,
+  },
+  itemHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
   },
-
-  status: {
-    fontSize: 11,
-    fontWeight: '600',
+  sender: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1A1A1A',
+    flex: 1,
+    marginRight: 8,
   },
-
-  time: {
-    fontSize: 11,
-    color: '#777',
+  bodyText: {
+    fontSize: 14,
+    color: '#6C757D',
+    lineHeight: 20,
+    marginBottom: 8,
   },
-
-  retry: {
+  footer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  statusPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+    marginRight: 8,
+  },
+  statusText: {
     fontSize: 10,
-    color: '#FF9800',
-    marginTop: 4,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  time: {
+    fontSize: 12,
+    color: '#ADB5BD',
+  },
+  retryBadge: {
+    backgroundColor: '#FFF3E0',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  retryText: {
+    fontSize: 10,
+    color: '#EF6C00',
+    fontWeight: '700',
+  },
+  // Empty State Styles
+  emptyCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#E9ECEF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  emptyIcon: {
+    fontSize: 32,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#343A40',
+    marginBottom: 8,
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    color: '#6C757D',
+    textAlign: 'center',
   },
 });

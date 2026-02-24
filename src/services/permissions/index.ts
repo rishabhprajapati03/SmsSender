@@ -1,22 +1,26 @@
 import { PermissionsAndroid, Platform, Alert, Linking } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
-const BATTERY_PROMPT_KEY = 'battery_prompt_shown';
 
 export interface PermissionStatus {
   sms: boolean;
   notifications: boolean;
-  batteryOptimization: boolean;
 }
+
+/* CHECKS */
 
 async function checkSmsPermissions(): Promise<boolean> {
   if (Platform.OS !== 'android') return false;
 
   try {
-    const read = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.READ_SMS);
-    const receive = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.RECEIVE_SMS);
+    const read = await PermissionsAndroid.check(
+      PermissionsAndroid.PERMISSIONS.READ_SMS,
+    );
+
+    const receive = await PermissionsAndroid.check(
+      PermissionsAndroid.PERMISSIONS.RECEIVE_SMS,
+    );
+
     return read && receive;
-  } catch (e) {
+  } catch {
     return false;
   }
 }
@@ -25,11 +29,15 @@ async function checkNotificationPermission(): Promise<boolean> {
   if (Platform.OS !== 'android' || Platform.Version < 33) return true;
 
   try {
-    return await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS);
-  } catch (e) {
+    return await PermissionsAndroid.check(
+      PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
+    );
+  } catch {
     return false;
   }
 }
+
+/* REQUEST */
 
 export async function requestSmsPermissions(): Promise<boolean> {
   if (Platform.OS !== 'android') return false;
@@ -39,8 +47,11 @@ export async function requestSmsPermissions(): Promise<boolean> {
       PermissionsAndroid.PERMISSIONS.READ_SMS,
       PermissionsAndroid.PERMISSIONS.RECEIVE_SMS,
     ]);
-    return Object.values(result).every(r => r === PermissionsAndroid.RESULTS.GRANTED);
-  } catch (e) {
+
+    return Object.values(result).every(
+      r => r === PermissionsAndroid.RESULTS.GRANTED,
+    );
+  } catch {
     return false;
   }
 }
@@ -52,34 +63,30 @@ export async function requestNotificationPermission(): Promise<boolean> {
     const result = await PermissionsAndroid.request(
       PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
     );
+
     return result === PermissionsAndroid.RESULTS.GRANTED;
-  } catch (e) {
+  } catch {
     return false;
   }
 }
 
-export async function promptBatteryOptimization(): Promise<void> {
-  const shown = await AsyncStorage.getItem(BATTERY_PROMPT_KEY);
-  if (shown === 'true') return;
+/* BATTERY SETTINGS */
 
+export function openBatterySettings() {
   Alert.alert(
     'Battery Optimization',
-    'For reliable background sync, please disable battery optimization for this app.',
+    'Disable battery optimization for reliable background sync.',
     [
-      {
-        text: 'Not Now',
-        onPress: async () => {
-          await AsyncStorage.setItem(BATTERY_PROMPT_KEY, 'true');
-        },
-      },
+      { text: 'Cancel', style: 'cancel' },
       {
         text: 'Open Settings',
         onPress: async () => {
-          await AsyncStorage.setItem(BATTERY_PROMPT_KEY, 'true');
           try {
-            await Linking.openSettings();
-          } catch (e) {
-            console.error('Failed to open settings:', e);
+            await Linking.openURL(
+              'android.settings.IGNORE_BATTERY_OPTIMIZATION_SETTINGS',
+            );
+          } catch {
+            Linking.openSettings();
           }
         },
       },
@@ -87,29 +94,28 @@ export async function promptBatteryOptimization(): Promise<void> {
   );
 }
 
+/* INIT */
+
 export async function initializePermissions(): Promise<PermissionStatus> {
   console.log('[Permissions] Initializing...');
 
-  const status: PermissionStatus = {
-    sms: await checkSmsPermissions(),
-    notifications: await checkNotificationPermission(),
-    batteryOptimization: true,
-  };
+  let sms = await checkSmsPermissions();
+  let notifications = await checkNotificationPermission();
 
-  if (!status.sms) {
-    status.sms = await requestSmsPermissions();
+  if (!sms) {
+    sms = await requestSmsPermissions();
   }
 
-  if (!status.notifications) {
-    status.notifications = await requestNotificationPermission();
+  if (!notifications) {
+    notifications = await requestNotificationPermission();
   }
 
-  await promptBatteryOptimization();
-
-  return status;
+  return { sms, notifications };
 }
 
-export async function canStartDutyMode(): Promise<{
+/* CAN START */
+
+export async function canStartSmsSyncMode(): Promise<{
   allowed: boolean;
   reason?: string;
   status: PermissionStatus;
@@ -117,27 +123,32 @@ export async function canStartDutyMode(): Promise<{
   const status: PermissionStatus = {
     sms: await checkSmsPermissions(),
     notifications: await checkNotificationPermission(),
-    batteryOptimization: true,
   };
 
   if (!status.sms) {
-    return { allowed: false, reason: 'SMS permissions required', status };
+    return {
+      allowed: false,
+      reason: 'SMS permission required',
+      status,
+    };
   }
 
   if (!status.notifications) {
-    return { allowed: false, reason: 'Notification permission required', status };
+    return {
+      allowed: false,
+      reason: 'Notification permission required',
+      status,
+    };
   }
 
-  return { allowed: true, status };
-}
-
-export async function getPermissionStatus(): Promise<PermissionStatus> {
+  // DO NOT block on battery optimization
   return {
-    sms: await checkSmsPermissions(),
-    notifications: await checkNotificationPermission(),
-    batteryOptimization: true,
+    allowed: true,
+    status,
   };
 }
+
+/* SETTINGS */
 
 export async function openAppSettings(): Promise<void> {
   try {

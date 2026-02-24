@@ -67,17 +67,13 @@ export async function sendSmsBatch(
 
     clearTimeout(timeoutId);
 
-    // ------------------------------
     // SUCCESS
-    // ------------------------------
     if (response.ok) {
       console.log('[API] Batch sent OK:', batchId);
       return { success: true };
     }
 
-    // ------------------------------
     // ERROR HANDLING
-    // ------------------------------
     const text = await response.text();
 
     console.error('[API] Error:', response.status, 'Batch:', batchId, text);

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getStats, invalidateStatsCache } from '../services/stats/statsService';
+import { getStats } from '../services/stats/statsService';
 import { subscribeToQueue } from '../services/queue/queueManager';
 
 export function useSyncStats() {
@@ -7,7 +7,6 @@ export function useSyncStats() {
   const [loading, setLoading] = useState(true);
 
   async function load() {
-    invalidateStatsCache();
     const s = await getStats();
     setStats(s);
     setLoading(false);

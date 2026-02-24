@@ -2,15 +2,15 @@ import React, { memo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
-import DashboardScreen from '../screens/DashboardScreen';
+import SettingsScreen from '../screens/SettingsScreen';
 
 /* TYPES */
 
-type DashboardStackParamList = {
-  Dashboard: undefined;
+type SettingsStackParamList = {
+  Settings: undefined;
 };
 
-const Stack = createNativeStackNavigator<DashboardStackParamList>();
+const Stack = createNativeStackNavigator<SettingsStackParamList>();
 
 /* HEADER */
 
@@ -34,19 +34,19 @@ const Header = memo(({ title }: HeaderProps) => {
 
 /* OPTIONS */
 
-const dashboardHeaderOptions = {
-  header: () => <Header title="Dashboard" />,
+const SettingsHeaderOptions = {
+  header: () => <Header title="Settings" />,
 };
 
 /* STACK */
 
-export default function DashboardStack() {
+export default function SettingsStack() {
   return (
     <Stack.Navigator>
       <Stack.Screen
-        name="Dashboard"
-        component={DashboardScreen}
-        options={dashboardHeaderOptions}
+        name="Settings"
+        component={SettingsScreen}
+        options={SettingsHeaderOptions}
       />
     </Stack.Navigator>
   );

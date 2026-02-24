@@ -11,9 +11,7 @@ const LISTENER_KEY = 'SMS_LISTENER_ACTIVE_V1';
 
 let isListening = false;
 
-/* ===============================
-   STORAGE HELPERS
-================================ */
+/* STORAGE HELPERS */
 
 async function isListenerMarkedActive(): Promise<boolean> {
   try {
@@ -36,9 +34,7 @@ async function markListenerInactive() {
   } catch {}
 }
 
-/* ===============================
-   START
-================================ */
+/* START */
 
 export async function startSmsListener(): Promise<void> {
   // Fast in-memory check
@@ -84,9 +80,7 @@ export async function startSmsListener(): Promise<void> {
   }
 }
 
-/* ===============================
-   STOP
-================================ */
+/* STOP */
 
 export async function stopSmsListener(): Promise<void> {
   if (!isListening) return;
@@ -109,9 +103,7 @@ export async function stopSmsListener(): Promise<void> {
   }
 }
 
-/* ===============================
-   STATE
-================================ */
+/* STATE */
 
 export function isListenerActive(): boolean {
   return isListening;

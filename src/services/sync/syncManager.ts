@@ -18,7 +18,6 @@ const DEVICE_ID_KEY = 'device_id';
  */
 const SYNC_LOCK_KEY = 'GLOBAL_SYNC_LOCK';
 const SYNC_LOCK_TTL = 2 * 60 * 1000; // 2 minutes
-
 let isSyncing = false;
 
 interface SyncMetadata {
@@ -27,9 +26,7 @@ interface SyncMetadata {
   totalSynced: number;
 }
 
-/* ===============================
-   GLOBAL LOCK
-================================ */
+/* GLOBAL LOCK */
 
 async function acquireSyncLock(): Promise<boolean> {
   const now = Date.now();
@@ -63,9 +60,7 @@ async function releaseSyncLock(): Promise<void> {
   }
 }
 
-/* ===============================
-   DEVICE ID
-================================ */
+/* DEVICE ID */
 
 async function getDeviceId(): Promise<string> {
   try {
@@ -86,9 +81,7 @@ async function getDeviceId(): Promise<string> {
   }
 }
 
-/* ===============================
-   METADATA
-================================ */
+/* METADATA */
 
 async function loadSyncMetadata(): Promise<SyncMetadata> {
   try {
@@ -113,9 +106,7 @@ async function saveSyncMetadata(metadata: SyncMetadata): Promise<void> {
   }
 }
 
-/* ===============================
-   BATCH PROCESS
-================================ */
+/* BATCH PROCESS */
 
 async function processBatch(
   batch: QueuedSms[],
@@ -156,9 +147,7 @@ async function processBatch(
   }
 }
 
-/* ===============================
-   MAIN SYNC
-================================ */
+/* MAIN SYNC */
 
 export async function syncQueue(): Promise<void> {
   // Local in-process guard
@@ -230,9 +219,7 @@ export async function syncQueue(): Promise<void> {
   }
 }
 
-/* ===============================
-   PUBLIC
-================================ */
+/* PUBLIC */
 
 export async function getSyncMetadata(): Promise<SyncMetadata> {
   return await loadSyncMetadata();
