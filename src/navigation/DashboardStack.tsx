@@ -2,7 +2,7 @@ import React, { memo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
-import DashboardScreen from '../screens/DashboardScreen';
+import DashboardScreen from '../screens/dashboard/DashboardScreen';
 
 /* TYPES */
 

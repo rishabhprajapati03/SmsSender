@@ -1,26 +1,19 @@
 import React, { useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ActivityIndicator,
-  ScrollView,
-} from 'react-native';
+import { View, Text, ActivityIndicator, ScrollView } from 'react-native';
 
 import { useRoute } from '@react-navigation/native';
 
-import { getQueue, type QueuedSms } from '../services/queue/queueManager';
+import { getQueue, type QueuedSms } from '../../services/queue/queueManager';
+import { styles } from './smsDetail.style';
 
-/*
-   Types */
+/*   Types */
 
 type RouteParams = {
   sms?: QueuedSms;
   id?: string;
 };
 
-/*
-   Screen */
+/* Screen */
 
 export default function SmsDetailScreen() {
   const route = useRoute();
@@ -30,8 +23,7 @@ export default function SmsDetailScreen() {
 
   const [loading, setLoading] = useState(!initialSms);
 
-  /*
-   Load by ID (Deep Link) */
+  /* Load by ID (Deep Link) */
 
   useEffect(() => {
     if (!sms && id) {
@@ -129,64 +121,3 @@ const getStatusColor = (status: string) => {
   if (status === 'failed') return '#FF3B30'; // iOS Red
   return '#8E8E93';
 };
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFFFFF' },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  content: { padding: 20 },
-  dateDivider: {
-    textAlign: 'center',
-    color: '#8E8E93',
-    fontSize: 12,
-    fontWeight: '600',
-    marginBottom: 24,
-    textTransform: 'uppercase',
-  },
-  bubbleContainer: {
-    alignItems: 'flex-start', // Messages usually come "from" someone, so left-aligned
-    marginBottom: 20,
-  },
-  bubble: {
-    backgroundColor: '#E9E9EB', // Standard iOS light gray bubble
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-    borderBottomLeftRadius: 4, // Makes it look like a chat tail
-    maxWidth: '85%',
-  },
-  bodyText: {
-    fontSize: 16,
-    color: '#000',
-    lineHeight: 20,
-  },
-  metaRow: {
-    flexDirection: 'row',
-    marginTop: 6,
-    marginLeft: 4,
-  },
-  metaText: {
-    fontSize: 12,
-    color: '#8E8E93',
-  },
-  metaDot: { color: '#C7C7CC' },
-  footerInfo: {
-    marginTop: 40,
-    borderTopWidth: 0.5,
-    borderTopColor: '#E5E7EB',
-    paddingTop: 10,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  idText: {
-    fontSize: 11,
-    color: '#C7C7CC',
-    fontFamily: 'monospace',
-  },
-  errorContainer: {
-    marginTop: 20,
-    padding: 10,
-    backgroundColor: '#FFF5F5',
-    borderRadius: 8,
-  },
-  errorText: { color: '#FF3B30', fontSize: 12 },
-});

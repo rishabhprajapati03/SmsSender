@@ -3,8 +3,8 @@ import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
 
-import MessagesScreen from '../screens/MessageScreen';
-import SmsDetailScreen from '../screens/SmsDetailScreen';
+import MessagesScreen from '../screens/message/MessageScreen';
+import SmsDetailScreen from '../screens/smsdetail/SmsDetailScreen';
 
 /* TYPES */
 

@@ -1,7 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { initNotifications } from '../notifications/notifier';
 import { initializePermissions } from '../permissions';
-// import { initializeBackgroundTasks } from '../background/backgroundTaskManager';
 import { restoreSmsSyncIfNeeded } from '../smsSync/smsSyncManager';
 
 const APP_INIT_KEY = 'APP_INITIALIZED_V1';
