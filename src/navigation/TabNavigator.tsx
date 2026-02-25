@@ -14,9 +14,9 @@ import SettingsStack from './SettingsStack';
 /* TYPES */
 
 type TabParamList = {
-  Dashboard: undefined;
-  Messages: undefined;
-  Settings: undefined;
+  DashboardTab: undefined;
+  MessagesTab: undefined;
+  SettingsTab: undefined;
 };
 
 const Tab = createBottomTabNavigator<TabParamList>();
@@ -27,18 +27,18 @@ const linking: LinkingOptions<TabParamList> = {
   prefixes: ['myapp://'],
   config: {
     screens: {
-      Dashboard: {
+      DashboardTab: {
         screens: {
           Dashboard: 'dashboard',
         },
       },
-      Messages: {
+      MessagesTab: {
         screens: {
           Messages: 'messages',
           SmsDetail: 'sms/:id',
         },
       },
-      Settings: 'settings',
+      SettingsTab: 'settings',
     },
   },
 };
@@ -52,7 +52,7 @@ const getTabIcon = (
   size: number,
 ) => {
   switch (routeName) {
-    case 'Dashboard':
+    case 'DashboardTab':
       return (
         <Ionicons
           name={focused ? 'home' : 'home-outline'}
@@ -61,7 +61,7 @@ const getTabIcon = (
         />
       );
 
-    case 'Messages':
+    case 'MessagesTab':
       return (
         <Ionicons
           name={focused ? 'chatbubble' : 'chatbubble-outline'}
@@ -70,7 +70,7 @@ const getTabIcon = (
         />
       );
 
-    case 'Settings':
+    case 'SettingsTab':
       return (
         <Ionicons
           name={focused ? 'settings' : 'settings-outline'}
@@ -105,21 +105,30 @@ export default function TabNavigator() {
     <NavigationContainer linking={linking}>
       <Tab.Navigator>
         <Tab.Screen
-          name="Dashboard"
+          name="DashboardTab"
           component={DashboardStack}
-          options={buildScreenOptions('Dashboard')}
+          options={{
+            tabBarLabel: 'Home',
+            ...buildScreenOptions('DashboardTab'),
+          }}
         />
 
         <Tab.Screen
-          name="Messages"
+          name="MessagesTab"
           component={MessagesStack}
-          options={buildScreenOptions('Messages')}
+          options={{
+            tabBarLabel: 'Messages',
+            ...buildScreenOptions('MessagesTab'),
+          }}
         />
 
         <Tab.Screen
-          name="Settings"
+          name="SettingsTab"
           component={SettingsStack}
-          options={buildScreenOptions('Settings')}
+          options={{
+            tabBarLabel: 'Settings',
+            ...buildScreenOptions('SettingsTab'),
+          }}
         />
       </Tab.Navigator>
     </NavigationContainer>

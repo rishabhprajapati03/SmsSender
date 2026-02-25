@@ -1,10 +1,12 @@
 import BackgroundFetch from 'react-native-background-fetch';
 import { syncQueue } from '../sync/syncManager';
 
+let DISABLED = true;
+
 let isConfigured = false;
 
 export async function initializeBackgroundTasks(): Promise<void> {
-  if (isConfigured) return;
+  if (DISABLED || isConfigured) return;
 
   try {
     console.log('[Background] Configuring...');

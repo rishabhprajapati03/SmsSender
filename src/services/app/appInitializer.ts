@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
+import { initNotifications } from '../notifications/notifier';
 import { initializePermissions } from '../permissions';
-import { initializeBackgroundTasks } from '../background/backgroundTaskManager';
+// import { initializeBackgroundTasks } from '../background/backgroundTaskManager';
 import { restoreSmsSyncIfNeeded } from '../smsSync/smsSyncManager';
 
 const APP_INIT_KEY = 'APP_INITIALIZED_V1';
@@ -11,6 +11,7 @@ let isInitializing = false;
 /* INIT */
 
 export async function initializeApp(): Promise<void> {
+  await initNotifications();
   // In-memory guard (fast)
   if (isInitializing) {
     console.log('[App] Init already running (memory)');
@@ -32,7 +33,6 @@ export async function initializeApp(): Promise<void> {
 
     // Blocking (must succeed)
     await initializePermissions();
-    await initializeBackgroundTasks();
 
     // Non-blocking (safe async)
 

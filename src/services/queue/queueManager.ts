@@ -55,7 +55,7 @@ function normalizeId(id: any): string | null {
 function cleanupRecentlyAddedCache() {
   const now = Date.now();
   const cutoff = now - DUPLICATE_WINDOW_MS;
-  
+
   if (recentlyAdded.size > 100) {
     for (const [key, time] of recentlyAdded.entries()) {
       if (time < cutoff) {
@@ -91,7 +91,7 @@ export async function addToQueue(sms: SmsData): Promise<void> {
   await queueLock.runExclusive(async () => {
     const queue = await loadQueueUnsafe();
     const id = normalizeId(sms.id);
-    
+
     if (!id) {
       console.warn('[Queue] SMS has no ID, skipping');
       return;
@@ -100,8 +100,8 @@ export async function addToQueue(sms: SmsData): Promise<void> {
     // Check for recent duplicates (prevents multiple listener registrations)
     const now = Date.now();
     const lastAdded = recentlyAdded.get(id);
-    
-    if (lastAdded && (now - lastAdded) < DUPLICATE_WINDOW_MS) {
+
+    if (lastAdded && now - lastAdded < DUPLICATE_WINDOW_MS) {
       console.warn('[Queue] Duplicate SMS within 5s, skipping:', id);
       return;
     }
@@ -114,7 +114,9 @@ export async function addToQueue(sms: SmsData): Promise<void> {
 
     // Check size limit
     if (queue.length >= AppConfig.queue.maxSize) {
-      const sent = queue.filter(item => item.status === 'sent').sort((a, b) => a.createdAt - b.createdAt);
+      const sent = queue
+        .filter(item => item.status === 'sent')
+        .sort((a, b) => a.createdAt - b.createdAt);
       if (sent.length > 0) {
         const toRemove = sent.slice(0, Math.min(100, sent.length));
         const removeIds = new Set(toRemove.map(item => item.id));
@@ -202,22 +204,19 @@ export async function markAsFailed(id: string, error: string): Promise<void> {
   });
 }
 
-export async function cleanupOldMessages(): Promise<number> {
+export async function clearSentMessages(): Promise<number> {
   return await queueLock.runExclusive(async () => {
     const queue = await loadQueueUnsafe();
-    const cutoff = Date.now() - AppConfig.queue.retentionDays * 24 * 60 * 60 * 1000;
 
-    const filtered = queue.filter(item => {
-      if (item.status !== 'sent') return true;
-      if (!item.syncedAt) return true;
-      return item.syncedAt > cutoff;
-    });
+    const filtered = queue.filter(item => item.status !== 'sent');
 
     const removed = queue.length - filtered.length;
+
     if (removed > 0) {
       await saveQueueUnsafe(filtered);
-      console.log('[Queue] Cleaned up', removed, 'old messages');
+      console.warn('[Queue] Manually cleared sent messages:', removed);
     }
+
     return removed;
   });
 }

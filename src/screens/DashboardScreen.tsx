@@ -3,18 +3,19 @@ import {
   View,
   Text,
   Switch,
-  StyleSheet,
   ScrollView,
   TouchableOpacity,
   Alert,
   ActivityIndicator,
   AppState,
+  StyleSheet,
 } from 'react-native';
 
 import {
   startSmsSync,
   stopSmsSync,
   getSmsSyncState,
+  isSmsSyncRunning,
 } from '../services/smsSync/smsSyncManager';
 
 import {
@@ -25,11 +26,15 @@ import {
 import { getStats } from '../services/stats/statsService';
 import { subscribeToQueue } from '../services/queue/queueManager';
 import { subscribeToSyncState } from '../services/sync/syncState';
+import { importInbox } from '../services/sms/smsImporter';
+import { syncQueue } from '../services/sync/syncManager';
 
 export default function DashboardScreen() {
-  const [smsSyncEnabled, setSmsSyncEnabled] = useState(false);
+  const [enabled, setEnabled] = useState(false);
+  const [running, setRunning] = useState(false);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<any>(null);
+  const [importing, setImporting] = useState(false);
 
   const loadingRef = useRef(false);
 
@@ -41,12 +46,13 @@ export default function DashboardScreen() {
     loadingRef.current = true;
 
     try {
-      const [smsSyncState, appStats] = await Promise.all([
+      const [state, appStats] = await Promise.all([
         getSmsSyncState(),
         getStats(),
       ]);
 
-      setSmsSyncEnabled(smsSyncState.enabled);
+      setEnabled(state.enabled);
+      setRunning(isSmsSyncRunning());
       setStats(appStats);
     } catch (e) {
       console.error('[Dashboard] Load failed:', e);
@@ -65,9 +71,7 @@ export default function DashboardScreen() {
     const unsubSync = subscribeToSyncState(loadData);
 
     const appSub = AppState.addEventListener('change', s => {
-      if (s === 'active') {
-        loadData();
-      }
+      if (s === 'active') loadData();
     });
 
     return () => {
@@ -77,78 +81,115 @@ export default function DashboardScreen() {
     };
   }, []);
 
-  /*     TOGGLE */
+  /* TOGGLE LIVE SYNC */
 
   async function handleToggle(value: boolean) {
     if (value) {
       const check = await canStartSmsSyncMode();
 
       if (!check.allowed) {
-        Alert.alert('Setup Required', check.reason || 'Setup incomplete', [
+        Alert.alert('Setup Required', check.reason || '', [
           { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Open Settings',
-            onPress: openBatterySettings,
-          },
+          { text: 'Open Settings', onPress: openBatterySettings },
         ]);
         return;
       }
 
       try {
         await startSmsSync();
-        await loadData();
       } catch (e: any) {
         Alert.alert('Error', e?.message || 'Failed to start sync');
       }
     } else {
       try {
         await stopSmsSync();
-        await loadData();
       } catch (e: any) {
         Alert.alert('Error', e?.message || 'Failed to stop sync');
       }
     }
+
+    await loadData();
   }
 
-  /*    LOADING */
+  /* MANUAL IMPORT */
+
+  async function handleImportInbox() {
+    Alert.alert(
+      'Import Old Messages',
+      'This will import existing SMS into the queue. Continue?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Import',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setImporting(true);
+              const count = await importInbox(1000);
+              Alert.alert('Done', `Imported ${count} messages`);
+            } catch {
+              Alert.alert('Error', 'Import failed');
+            } finally {
+              setImporting(false);
+              loadData();
+            }
+          },
+        },
+      ],
+    );
+  }
+
+  /* RETRY FAILED */
+
+  async function handleRetryFailed() {
+    try {
+      await syncQueue();
+      await loadData();
+
+      Alert.alert('Success', 'Retry started');
+    } catch {
+      Alert.alert('Error', 'Retry failed');
+    }
+  }
+
+  /* LOADING */
 
   if (loading) {
     return (
-      <View>
+      <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#2196F3" />
       </View>
     );
   }
 
-  /*  UI */
+  /* UI */
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      {/* Sync Toggle Card */}
-      <View style={[styles.card, smsSyncEnabled && styles.cardActive]}>
+      {/* SERVICE STATUS */}
+      <View style={[styles.card, enabled && styles.cardActive]}>
         <View style={styles.row}>
           <View style={styles.flex}>
             <Text style={styles.cardTitle}>SmsSync Service</Text>
             <Text
               style={[
                 styles.statusText,
-                { color: smsSyncEnabled ? '#2E7D32' : '#757575' },
+                { color: running ? '#2E7D32' : '#D32F2F' },
               ]}
             >
-              ● {smsSyncEnabled ? 'Running' : 'Paused'}
+              ● {running ? 'Running' : 'Stopped'}
             </Text>
           </View>
-
           <Switch
-            value={smsSyncEnabled}
+            value={enabled}
             onValueChange={handleToggle}
             trackColor={{ false: '#D1D1D1', true: '#81C784' }}
-            thumbColor={smsSyncEnabled ? '#2E7D32' : '#F4F4F4'}
+            thumbColor={enabled ? '#2E7D32' : '#F4F4F4'}
           />
         </View>
       </View>
 
-      {/* Queue Statistics */}
+      {/* QUEUE STATS GRID */}
       <View style={styles.card}>
         <Text style={styles.sectionLabel}>Queue Activity</Text>
         <View style={styles.statsGrid}>
@@ -159,7 +200,7 @@ export default function DashboardScreen() {
         </View>
       </View>
 
-      {/* Sync Details */}
+      {/* SYNC INFO */}
       <View style={styles.card}>
         <Text style={styles.sectionLabel}>Sync Details</Text>
         <Info
@@ -173,8 +214,7 @@ export default function DashboardScreen() {
               : 'Never'
           }
         />
-        <Info label="Total Processed" value={stats?.totalQueued || 0} />
-
+        <Info label="Total Processed" value={stats?.sent || 0} />
         {stats?.lastError && (
           <View style={styles.errorBox}>
             <Text style={styles.errorText}>{stats.lastError}</Text>
@@ -182,37 +222,37 @@ export default function DashboardScreen() {
         )}
       </View>
 
-      {/* Inbox Summary */}
+      {/* ACTIONS */}
       <View style={styles.card}>
-        <View style={styles.inboxRow}>
-          <Text style={styles.cardTitle}>Device Inbox</Text>
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>{stats?.inboxCount || 0} MSGS</Text>
-          </View>
-        </View>
-      </View>
+        <Text style={styles.sectionLabel}>Quick Actions</Text>
+        <TouchableOpacity
+          style={styles.importButton}
+          onPress={handleImportInbox}
+          disabled={importing}
+        >
+          <Text style={styles.importButtonText}>
+            {importing ? 'Importing...' : 'Import Device Inbox'}
+          </Text>
+        </TouchableOpacity>
 
-      <TouchableOpacity
-        style={styles.refreshButton}
-        onPress={loadData}
-        activeOpacity={0.8}
-      >
-        <Text style={styles.refreshButtonText}>Refresh Data</Text>
-      </TouchableOpacity>
+        {stats?.failed > 0 && (
+          <TouchableOpacity
+            style={styles.retryButton}
+            onPress={handleRetryFailed}
+          >
+            <Text style={styles.retryButtonText}>
+              Retry Failed ({stats.failed})
+            </Text>
+          </TouchableOpacity>
+        )}
+      </View>
     </ScrollView>
   );
 }
 
-/* COMPONENTS */
-function Stat({
-  label,
-  value,
-  color,
-}: {
-  label: string;
-  value: number;
-  color?: string;
-}) {
+/* HELPERS */
+
+function Stat({ label, value, color }: any) {
   return (
     <View style={styles.statItem}>
       <Text
@@ -225,7 +265,7 @@ function Stat({
   );
 }
 
-function Info({ label, value }: { label: string; value: any }) {
+function Info({ label, value }: any) {
   return (
     <View style={styles.infoRow}>
       <Text style={styles.infoLabel}>{label}</Text>
@@ -233,17 +273,23 @@ function Info({ label, value }: { label: string; value: any }) {
     </View>
   );
 }
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F9FAFB',
   },
   content: {
-    padding: 12,
+    padding: 16,
+    paddingBottom: 40,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   header: {
     marginBottom: 24,
+    marginTop: 10,
   },
   title: {
     fontSize: 28,
@@ -265,7 +311,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    shadowColor: '#070505',
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04,
     shadowRadius: 3,
@@ -281,8 +327,8 @@ const styles = StyleSheet.create({
     color: '#374151',
   },
   sectionLabel: {
-    fontSize: 12,
-    fontWeight: '600',
+    fontSize: 11,
+    fontWeight: '700',
     color: '#9CA3AF',
     textTransform: 'uppercase',
     letterSpacing: 1,
@@ -290,7 +336,7 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 13,
-    fontWeight: '500',
+    fontWeight: '600',
     marginTop: 2,
   },
   row: {
@@ -325,11 +371,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#F3F4F6',
   },
-  inboxRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
   infoLabel: {
     color: '#6B7280',
     fontSize: 14,
@@ -338,17 +379,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#111827',
     fontSize: 14,
-  },
-  badge: {
-    backgroundColor: '#F3F4F6',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  badgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#374151',
   },
   errorBox: {
     backgroundColor: '#FEF2F2',
@@ -362,16 +392,54 @@ const styles = StyleSheet.create({
     color: '#B91C1C',
     fontSize: 13,
   },
-  refreshButton: {
-    backgroundColor: '#111827',
-    padding: 16,
+  actionButton: {
+    backgroundColor: '#',
+    padding: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  actionButtonText: {
+    color: '#374151',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  retryButton: {
+    backgroundColor: '#EEF2FF',
+    padding: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#C7D2FE',
+  },
+
+  retryButtonText: {
+    color: '#4338CA',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  dangerButton: {
+    backgroundColor: '#FFF1F1',
+    padding: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#FEE2E2',
+  },
+  dangerButtonText: {
+    color: '#D32F2F',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  importButton: {
+    backgroundColor: '#303030',
+    padding: 14,
     borderRadius: 12,
     alignItems: 'center',
-    marginTop: 8,
-    marginBottom: 40,
   },
-  refreshButtonText: {
-    color: '#FFFFFF',
+  importButtonText: {
+    color: '#ffffff',
     fontWeight: '600',
     fontSize: 16,
   },

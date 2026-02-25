@@ -1,13 +1,5 @@
 import Config from 'react-native-config';
 
-function normalizeSupabaseUrl(url: string): string {
-  if (!url) return '';
-  url = url.replace(/\/$/, '');
-  url = url.replace(/\/rest\/v1\/sms_logs$/, '');
-  url = url.replace(/\/rest\/v1$/, '');
-  return url;
-}
-
 const rawUrl =
   Config.SUPABASE_URL || 'https://bacqmtevintazwvfnaga.supabase.co';
 const rawKey =
@@ -16,7 +8,7 @@ const rawKey =
 
 export const AppConfig = {
   supabase: {
-    url: normalizeSupabaseUrl(rawUrl),
+    url: rawUrl,
     anonKey: rawKey,
   },
   api: {
@@ -24,7 +16,6 @@ export const AppConfig = {
   },
   queue: {
     batchSize: Number(Config.QUEUE_BATCH_SIZE) || 20,
-    retentionDays: Number(Config.QUEUE_RETENTION_DAYS) || 30,
     maxSize: Number(Config.QUEUE_MAX_SIZE) || 10000,
   },
   sync: {

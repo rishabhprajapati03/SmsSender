@@ -1,24 +1,29 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
 import { sendSmsBatch } from '../api/apiClient';
+
 import {
   getPendingMessages,
   markAsSyncing,
   markAsSent,
   markAsFailed,
-  cleanupOldMessages,
   type QueuedSms,
 } from '../queue/queueManager';
+
 import { setSyncState } from './syncState';
+import { notifySmsSynced } from '../notifications/notifier';
+
+/* STORAGE KEYS */
 
 const SYNC_META_KEY = 'sync_metadata';
 const DEVICE_ID_KEY = 'device_id';
 
-/**
- * Global cross-process sync lock
- */
 const SYNC_LOCK_KEY = 'GLOBAL_SYNC_LOCK';
-const SYNC_LOCK_TTL = 2 * 60 * 1000; // 2 minutes
+const SYNC_LOCK_TTL = 2 * 60 * 1000; // 2 min
+
 let isSyncing = false;
+
+/* TYPES */
 
 interface SyncMetadata {
   lastSync: number | null;
@@ -37,13 +42,11 @@ async function acquireSyncLock(): Promise<boolean> {
     if (lock) {
       const lockTime = Number(lock);
 
-      // Active lock → skip
       if (!isNaN(lockTime) && now - lockTime < SYNC_LOCK_TTL) {
         return false;
       }
     }
 
-    // Set new lock
     await AsyncStorage.setItem(SYNC_LOCK_KEY, String(now));
     return true;
   } catch (e) {
@@ -86,6 +89,7 @@ async function getDeviceId(): Promise<string> {
 async function loadSyncMetadata(): Promise<SyncMetadata> {
   try {
     const data = await AsyncStorage.getItem(SYNC_META_KEY);
+
     if (data) return JSON.parse(data);
   } catch (error) {
     console.error('[Sync] Failed to load metadata:', error);
@@ -111,14 +115,13 @@ async function saveSyncMetadata(metadata: SyncMetadata): Promise<void> {
 async function processBatch(
   batch: QueuedSms[],
   deviceId: string,
-): Promise<void> {
+): Promise<number> {
   const ids = batch.map(msg => msg.id);
 
   await markAsSyncing(ids);
 
   try {
     const payload = batch.map(msg => {
-      // Stronger UID (avoids collisions)
       const smsUid = `${deviceId}_${msg.id}_${msg.timestamp}`;
 
       return {
@@ -138,6 +141,8 @@ async function processBatch(
     }
 
     await markAsSent(ids);
+
+    return ids.length;
   } catch (error: any) {
     for (const msg of batch) {
       await markAsFailed(msg.id, error?.message || 'Unknown error');
@@ -150,17 +155,15 @@ async function processBatch(
 /* MAIN SYNC */
 
 export async function syncQueue(): Promise<void> {
-  // Local in-process guard
   if (isSyncing) {
-    console.log('[Sync] Already running (local), skipping');
+    console.log('[Sync] Already running (local)');
     return;
   }
 
-  // Global cross-process guard
   const lockAcquired = await acquireSyncLock();
 
   if (!lockAcquired) {
-    console.log('[Sync] Global lock active, skipping');
+    console.log('[Sync] Global lock active');
     return;
   }
 
@@ -170,11 +173,12 @@ export async function syncQueue(): Promise<void> {
   const metadata = await loadSyncMetadata();
   metadata.lastSync = Date.now();
 
+  let totalSyncedThisRun = 0;
+
   try {
     console.log('[Sync] Starting...');
 
     const deviceId = await getDeviceId();
-    let totalSynced = 0;
 
     while (true) {
       const batch = await getPendingMessages();
@@ -183,23 +187,21 @@ export async function syncQueue(): Promise<void> {
 
       console.log('[Sync] Processing batch:', batch.length);
 
-      try {
-        await processBatch(batch, deviceId);
-        totalSynced += batch.length;
-      } catch (error) {
-        console.error('[Sync] Batch failed, stopping');
-        throw error;
-      }
+      const synced = await processBatch(batch, deviceId);
+
+      totalSyncedThisRun += synced;
     }
 
-    await cleanupOldMessages();
-
     metadata.lastError = null;
-    metadata.totalSynced += totalSynced;
+    metadata.totalSynced += totalSyncedThisRun;
 
     await saveSyncMetadata(metadata);
 
-    console.log('[Sync] Completed, synced:', totalSynced);
+    if (totalSyncedThisRun > 0) {
+      notifySmsSynced(totalSyncedThisRun);
+    }
+
+    console.log('[Sync] Completed:', totalSyncedThisRun);
 
     setSyncState('idle');
   } catch (error: any) {

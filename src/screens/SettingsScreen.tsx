@@ -9,35 +9,12 @@ import {
 } from 'react-native';
 
 import { openAppSettings } from '../services/permissions';
-import { stopSmsSync } from '../services/smsSync/smsSyncManager';
-import { clearQueue } from '../services/queue/queueManager';
+import { clearQueue, clearSentMessages } from '../services/queue/queueManager';
 import { AppConfig, getSmsLogsUrl } from '../config';
 
 export default function SettingsScreen() {
   async function handleOpenAppSettings() {
     await openAppSettings();
-  }
-
-  async function handleStopSmsSync() {
-    Alert.alert(
-      'Stop SmsSync Mode',
-      'Are you sure you want to stop smsSync mode?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Stop',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await stopSmsSync();
-              Alert.alert('Success', 'SmsSync mode stopped');
-            } catch (error: any) {
-              Alert.alert('Error', error.message);
-            }
-          },
-        },
-      ],
-    );
   }
 
   async function handleClearQueue() {
@@ -61,11 +38,30 @@ export default function SettingsScreen() {
       ],
     );
   }
+  async function handleClearSent() {
+    Alert.alert(
+      'Clear Sent Messages',
+      'Remove all successfully synced messages?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear',
+          onPress: async () => {
+            try {
+              const removed = await clearSentMessages();
+
+              Alert.alert('Done', `${removed} messages removed`);
+            } catch {
+              Alert.alert('Error', 'Operation failed');
+            }
+          },
+        },
+      ],
+    );
+  }
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>Settings</Text>
-
       {/* API Configuration Card */}
       <View style={styles.sectionCard}>
         <Text style={styles.sectionHeader}>API Configuration</Text>
@@ -102,22 +98,15 @@ export default function SettingsScreen() {
 
         <TouchableOpacity
           style={styles.dangerButton}
-          onPress={handleStopSmsSync}
-        >
-          <Text style={styles.dangerButtonText}>Stop SmsSync Mode</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.dangerButton}
           onPress={handleClearQueue}
         >
           <Text style={styles.dangerButtonText}>Clear Message Queue</Text>
         </TouchableOpacity>
-      </View>
 
-      <Text style={styles.footerText}>
-        Version 1.0.4 • {AppConfig.supabase.url ? 'Connected' : 'Offline'}
-      </Text>
+        <TouchableOpacity style={styles.dangerButton} onPress={handleClearSent}>
+          <Text style={styles.dangerButtonText}>Clear Synced Messages</Text>
+        </TouchableOpacity>
+      </View>
     </ScrollView>
   );
 }
@@ -144,18 +133,11 @@ function SettingRow({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB', // Matches Dashboard background
+    backgroundColor: '#F9FAFB',
   },
   content: {
     padding: 12,
     paddingBottom: 40,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: '#111827',
-    marginBottom: 24,
-    letterSpacing: -0.5,
   },
   sectionCard: {
     backgroundColor: '#FFFFFF',

@@ -6,10 +6,12 @@ import {
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { addToQueue } from '../queue/queueManager';
+import { getSyncStartTimestamp } from '../smsSync/smsSyncManager';
 
 const LISTENER_KEY = 'SMS_LISTENER_ACTIVE_V1';
 
 let isListening = false;
+let syncStartCache: number = 0;
 
 /* STORAGE HELPERS */
 
@@ -37,13 +39,11 @@ async function markListenerInactive() {
 /* START */
 
 export async function startSmsListener(): Promise<void> {
-  // Fast in-memory check
   if (isListening) {
     console.warn('[SMS] Listener already running (memory)');
     return;
   }
 
-  // Cross-runtime check
   const alreadyActive = await isListenerMarkedActive();
 
   if (alreadyActive) {
@@ -55,10 +55,20 @@ export async function startSmsListener(): Promise<void> {
   console.log('[SMS] Starting listener...');
 
   try {
+    // Cache sync boundary ONCE
+    syncStartCache = await getSyncStartTimestamp();
+
     startNativeListener(async (sms: SmsData) => {
       try {
         if (!sms?.id) {
           console.warn('[SMS] Invalid SMS, skipping');
+          return;
+        }
+
+        const smsTime = Number(sms.timestamp) || 0;
+
+        // Ignore SMS before sync enabled
+        if (syncStartCache && smsTime && smsTime < syncStartCache) {
           return;
         }
 
@@ -91,6 +101,7 @@ export async function stopSmsListener(): Promise<void> {
     stopNativeListener();
 
     isListening = false;
+    syncStartCache = 0;
 
     await markListenerInactive();
 
@@ -99,6 +110,8 @@ export async function stopSmsListener(): Promise<void> {
     console.error('[SMS] Stop error:', error);
 
     isListening = false;
+    syncStartCache = 0;
+
     await markListenerInactive();
   }
 }
