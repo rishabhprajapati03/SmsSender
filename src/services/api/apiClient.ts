@@ -1,8 +1,6 @@
 import { AppConfig, getSmsLogsUrl } from '../../config';
 
-/**
- * Generates idempotency key for a batch
- */
+/* Generates idempotency key for a batch */
 function generateBatchId(messages: any[]): string {
   const base = messages
     .map(m => m.sms_uid)

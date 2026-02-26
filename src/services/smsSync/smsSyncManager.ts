@@ -1,139 +1,42 @@
-import BackgroundService from 'react-native-background-actions';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
-import {
-  startSmsListener,
-  stopSmsListener,
-  isListenerActive,
-} from '../sms/smsListener';
-
-import { syncQueue } from '../sync/syncManager';
-import { AppConfig } from '../../config';
-
-/* STORAGE KEYS */
-
-const SYNC_START_TS_KEY = 'SMS_SYNC_START_TS';
-const DUTY_STATE_KEY = 'smsSync_state_v2';
-
-/* TYPES */
-
-interface SmsSyncState {
-  enabled: boolean;
-  startedAt: number | null;
-}
+import { SmsSyncBridge } from '../native/SmsSyncBridge';
+import { Alert } from 'react-native';
 
 /* STATE */
 
-let isRunning = false;
-
-/* FOREGROUND OPTIONS */
-
-const foregroundOptions = {
-  taskName: 'SMS Sync Service',
-  taskTitle: 'Syncing SMS',
-  taskDesc: 'Listening and syncing SMS messages',
-  taskIcon: { name: 'ic_launcher', type: 'mipmap' },
-  color: '#2196F3',
-  linkingURI: 'myapp://dashboard',
-  parameters: {},
-};
-
-/* STATE STORAGE */
-
-async function loadSmsSyncState(): Promise<SmsSyncState> {
-  try {
-    const data = await AsyncStorage.getItem(DUTY_STATE_KEY);
-
-    if (data) return JSON.parse(data);
-  } catch (error) {
-    console.error('[SmsSync] Load state failed:', error);
-  }
-
-  return { enabled: false, startedAt: null };
-}
-
-async function saveSmsSyncState(state: SmsSyncState): Promise<void> {
-  try {
-    await AsyncStorage.setItem(DUTY_STATE_KEY, JSON.stringify(state));
-  } catch (error) {
-    console.error('[SmsSync] Save state failed:', error);
-  }
-}
-
-/* SYNC START TIMESTAMP */
-
-export async function getSyncStartTimestamp(): Promise<number> {
-  try {
-    const val = await AsyncStorage.getItem(SYNC_START_TS_KEY);
-    return val ? Number(val) : 0;
-  } catch {
-    return 0;
-  }
-}
-
-async function setSyncStartTimestamp(ts: number): Promise<void> {
-  try {
-    await AsyncStorage.setItem(SYNC_START_TS_KEY, String(ts));
-  } catch {}
-}
-
-/* MAIN TASK */
-
-async function smsSyncTask(): Promise<void> {
-  console.log('[SmsSync] Task started');
-
-  if (!isListenerActive()) {
-    await startSmsListener();
-  }
-
-  while (BackgroundService.isRunning()) {
-    try {
-      await syncQueue();
-    } catch (error) {
-      console.error('[SmsSync] Sync error:', error);
-    }
-
-    await new Promise(resolve =>
-      setTimeout(resolve, AppConfig.sync.intervalMs),
-    );
-  }
-
-  await stopSmsListener();
-
-  console.log('[SmsSync] Task stopped');
-}
+let cachedEnabled = false;
 
 /* START */
 
 export async function startSmsSync(): Promise<void> {
-  if (isRunning) return;
-
   try {
     console.log('[SmsSync] Starting...');
-    isRunning = true;
 
-    const now = Date.now();
+    // Check permissions before enabling
+    const permissions = await SmsSyncBridge.checkRequiredPermissions();
 
-    // Save boundary timestamp
-    await setSyncStartTimestamp(now);
+    if (!permissions.readSms || !permissions.receiveSms || !permissions.postNotifications) {
+      const missing = [];
+      if (!permissions.readSms) missing.push('Read SMS');
+      if (!permissions.receiveSms) missing.push('Receive SMS');
+      if (!permissions.postNotifications) missing.push('Notifications');
 
-    // Save state
-    await saveSmsSyncState({
-      enabled: true,
-      startedAt: now,
-    });
+      Alert.alert(
+        'Permissions Required',
+        `Please grant the following permissions to enable SMS sync:\n\n${missing.join(', ')}\n\nGo to Settings > Apps > SMS Sender > Permissions`,
+        [{ text: 'OK' }]
+      );
 
-    await BackgroundService.start(smsSyncTask, foregroundOptions);
+      throw new Error('Required permissions not granted');
+    }
+
+    await SmsSyncBridge.enableSync();
+
+    cachedEnabled = true;
 
     console.log('[SmsSync] Started');
   } catch (error) {
     console.error('[SmsSync] Start failed:', error);
-
-    isRunning = false;
-
-    await setSyncStartTimestamp(0);
-    await saveSmsSyncState({ enabled: false, startedAt: null });
-
+    cachedEnabled = false;
     throw error;
   }
 }
@@ -141,58 +44,64 @@ export async function startSmsSync(): Promise<void> {
 /* STOP */
 
 export async function stopSmsSync(): Promise<void> {
-  if (!isRunning) return;
-
   try {
     console.log('[SmsSync] Stopping...');
-    isRunning = false;
 
-    await BackgroundService.stop();
-    await stopSmsListener();
+    await SmsSyncBridge.disableSync();
 
-    // Clear boundary
-    await setSyncStartTimestamp(0);
-
-    await saveSmsSyncState({ enabled: false, startedAt: null });
+    cachedEnabled = false;
 
     console.log('[SmsSync] Stopped');
   } catch (error) {
     console.error('[SmsSync] Stop failed:', error);
-
-    isRunning = false;
-
-    await setSyncStartTimestamp(0);
-    await saveSmsSyncState({ enabled: false, startedAt: null });
+    cachedEnabled = false;
   }
 }
 
 /* STATUS */
 
 export function isSmsSyncRunning(): boolean {
-  return isRunning && BackgroundService.isRunning();
+  return cachedEnabled;
 }
 
-export async function getSmsSyncState(): Promise<SmsSyncState> {
-  return await loadSmsSyncState();
+export async function getSmsSyncState(): Promise<{
+  enabled: boolean;
+  startedAt: number | null;
+}> {
+  try {
+    const enabled = await SmsSyncBridge.isSyncEnabled();
+    cachedEnabled = enabled;
+
+    return {
+      enabled,
+      startedAt: enabled ? Date.now() : null,
+    };
+  } catch (error) {
+    console.error('[SmsSync] Get state failed:', error);
+    return { enabled: false, startedAt: null };
+  }
 }
 
 /* RESTORE */
 
 export async function restoreSmsSyncIfNeeded(): Promise<boolean> {
-  const state = await loadSmsSyncState();
-
-  if (!state.enabled) {
-    return false;
-  }
-
   try {
-    if (!BackgroundService.isRunning()) {
-      await startSmsSync();
+    const enabled = await SmsSyncBridge.isSyncEnabled();
+    cachedEnabled = enabled;
+
+    if (enabled) {
+      console.log('[SmsSync] Already enabled, no restore needed');
     }
 
-    return true;
+    return enabled;
   } catch (error) {
-    console.error('[SmsSync] Restore failed:', error);
+    console.error('[SmsSync] Restore check failed:', error);
     return false;
   }
+}
+
+/* SYNC START TIMESTAMP - Not needed anymore but kept for compatibility */
+
+export async function getSyncStartTimestamp(): Promise<number> {
+  return 0;
 }

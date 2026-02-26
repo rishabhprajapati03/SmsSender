@@ -1,7 +1,13 @@
 import React from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  Alert,
+  Linking,
+} from 'react-native';
 
-import { openAppSettings } from '../../services/permissions';
 import {
   clearQueue,
   clearSentMessages,
@@ -11,7 +17,11 @@ import { styles } from './settings.style';
 
 export default function SettingsScreen() {
   async function handleOpenAppSettings() {
-    await openAppSettings();
+    try {
+      await Linking.openSettings();
+    } catch (e) {
+      console.error('Failed to open settings:', e);
+    }
   }
 
   async function handleClearQueue() {
@@ -59,7 +69,6 @@ export default function SettingsScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      {/* API Configuration Card */}
       <View style={styles.sectionCard}>
         <Text style={styles.sectionHeader}>API Configuration</Text>
 
@@ -77,7 +86,7 @@ export default function SettingsScreen() {
         />
       </View>
 
-      {/* System Actions Card */}
+      {/* system actions */}
       <View style={styles.sectionCard}>
         <Text style={styles.sectionHeader}>System Actions</Text>
 

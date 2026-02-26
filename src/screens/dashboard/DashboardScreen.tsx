@@ -17,14 +17,8 @@ import {
   isSmsSyncRunning,
 } from '../../services/smsSync/smsSyncManager';
 
-import {
-  canStartSmsSyncMode,
-  openBatterySettings,
-} from '../../services/permissions';
-
 import { getStats } from '../../services/stats/statsService';
 import { subscribeToQueue } from '../../services/queue/queueManager';
-import { subscribeToSyncState } from '../../services/sync/syncState';
 import { importInbox } from '../../services/sms/smsImporter';
 import { syncQueue } from '../../services/sync/syncManager';
 import { styles } from './dashboard.style';
@@ -68,7 +62,6 @@ export default function DashboardScreen() {
     loadData();
 
     const unsubQueue = subscribeToQueue(loadData);
-    const unsubSync = subscribeToSyncState(loadData);
 
     const appSub = AppState.addEventListener('change', s => {
       if (s === 'active') loadData();
@@ -76,7 +69,6 @@ export default function DashboardScreen() {
 
     return () => {
       unsubQueue();
-      unsubSync();
       appSub.remove();
     };
   }, []);
@@ -85,20 +77,11 @@ export default function DashboardScreen() {
 
   async function handleToggle(value: boolean) {
     if (value) {
-      const check = await canStartSmsSyncMode();
-
-      if (!check.allowed) {
-        Alert.alert('Setup Required', check.reason || '', [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Open Settings', onPress: openBatterySettings },
-        ]);
-        return;
-      }
-
       try {
         await startSmsSync();
       } catch (e: any) {
-        Alert.alert('Error', e?.message || 'Failed to start sync');
+        // Error already shown in startSmsSync via Alert
+        console.error('[Dashboard] Toggle failed:', e);
       }
     } else {
       try {
