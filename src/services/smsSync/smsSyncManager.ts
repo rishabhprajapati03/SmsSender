@@ -1,5 +1,6 @@
 import { SmsSyncBridge } from '../native/SmsSyncBridge';
-import { Alert } from 'react-native';
+import { Alert, Linking } from 'react-native';
+import { requestRequiredPermissions } from '../permissions/runtimePermissions';
 
 /* STATE */
 
@@ -11,24 +12,34 @@ export async function startSmsSync(): Promise<void> {
   try {
     console.log('[SmsSync] Starting...');
 
-    // Check permissions before enabling
-    const permissions = await SmsSyncBridge.checkRequiredPermissions();
+    // Request runtime permissions first
+    const permissionResult = await requestRequiredPermissions();
 
-    if (!permissions.readSms || !permissions.receiveSms || !permissions.postNotifications) {
-      const missing = [];
-      if (!permissions.readSms) missing.push('Read SMS');
-      if (!permissions.receiveSms) missing.push('Receive SMS');
-      if (!permissions.postNotifications) missing.push('Notifications');
-
-      Alert.alert(
-        'Permissions Required',
-        `Please grant the following permissions to enable SMS sync:\n\n${missing.join(', ')}\n\nGo to Settings > Apps > SMS Sender > Permissions`,
-        [{ text: 'OK' }]
-      );
+    if (!permissionResult.granted) {
+      if (permissionResult.permanentlyDenied) {
+        Alert.alert(
+          'Permissions Required',
+          'Permissions are permanently denied. Please enable them in Settings to use SMS Sync.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'Open Settings',
+              onPress: () => Linking.openSettings(),
+            },
+          ]
+        );
+      } else {
+        Alert.alert(
+          'Permissions Required',
+          'Permissions are required to enable SMS Sync. Please grant all requested permissions.',
+          [{ text: 'OK' }]
+        );
+      }
 
       throw new Error('Required permissions not granted');
     }
 
+    // Native enableSync() enforces permissions and starts service
     await SmsSyncBridge.enableSync();
 
     cachedEnabled = true;

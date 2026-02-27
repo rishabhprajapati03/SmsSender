@@ -14,7 +14,6 @@ import {
   startSmsSync,
   stopSmsSync,
   getSmsSyncState,
-  isSmsSyncRunning,
 } from '../../services/smsSync/smsSyncManager';
 
 import { getStats } from '../../services/stats/statsService';
@@ -46,7 +45,7 @@ export default function DashboardScreen() {
       ]);
 
       setEnabled(state.enabled);
-      setRunning(isSmsSyncRunning());
+      setRunning(state.enabled);
       setStats(appStats);
     } catch (e) {
       console.error('[Dashboard] Load failed:', e);
@@ -62,13 +61,16 @@ export default function DashboardScreen() {
     loadData();
 
     const unsubQueue = subscribeToQueue(loadData);
-
+    const interval = setInterval(() => {
+      loadData();
+    }, 3000);
     const appSub = AppState.addEventListener('change', s => {
       if (s === 'active') loadData();
     });
 
     return () => {
       unsubQueue();
+      clearInterval(interval);
       appSub.remove();
     };
   }, []);

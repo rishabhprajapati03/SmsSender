@@ -25,42 +25,37 @@ class SmsWorker(
         private const val KEY_DEVICE_ID = "device_id"
     }
 
-    override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
-        try {
-            Log.d(TAG, "Starting SMS upload work")
+  override suspend fun doWork(): Result {
+    try {
+        Log.d(TAG, "Starting SMS upload work")
 
-            val db = SmsDatabase.getInstance(applicationContext)
-            val dao = db.smsDao()
+        val db = SmsDatabase.getInstance(applicationContext)
+        val dao = db.smsDao()
+        val deviceId = getDeviceId()
 
-            val deviceId = getDeviceId()
-            val batch = dao.getPending(System.currentTimeMillis(), BATCH_SIZE)
+        var totalProcessed = 0
+
+        while (true) {
+
+            val now = System.currentTimeMillis()
+            val batch = dao.getPending(now, BATCH_SIZE)
 
             if (batch.isEmpty()) {
-                Log.d(TAG, "No pending messages")
-                return@withContext Result.success()
+                Log.d(TAG, "No more pending messages. Total processed: $totalProcessed")
+                return Result.success()
             }
 
             Log.d(TAG, "Processing batch: ${batch.size} messages")
 
             val ids = batch.map { it.id }
-            dao.updateStatus(ids, "syncing", System.currentTimeMillis())
+            dao.updateStatus(ids, "syncing", now)
 
             val success = uploadBatch(batch, deviceId)
 
             if (success) {
                 dao.markAsSent(ids, System.currentTimeMillis())
-                Log.d(TAG, "Batch uploaded successfully")
-
-                // Check if more pending messages exist
-                val remaining = dao.getPending(System.currentTimeMillis(), 1)
-                if (remaining.isNotEmpty()) {
-                    Log.d(TAG, "More messages pending, scheduling next batch")
-                    scheduleNextBatch()
-                }
-
-                return@withContext Result.success()
+                totalProcessed += batch.size
             } else {
-                // Mark as failed with retry
                 for (sms in batch) {
                     val backoff = calculateBackoff(sms.retryCount + 1)
                     dao.markAsFailed(
@@ -69,15 +64,15 @@ class SmsWorker(
                         System.currentTimeMillis() + backoff
                     )
                 }
-                Log.w(TAG, "Batch upload failed, will retry")
-                return@withContext Result.retry()
+                return Result.retry()
             }
-
-        } catch (e: Exception) {
-            Log.e(TAG, "Worker error", e)
-            return@withContext Result.retry()
         }
+
+    } catch (e: Exception) {
+        Log.e(TAG, "Worker error", e)
+        return Result.retry()
     }
+}
 
     private fun uploadBatch(batch: List<SmsEntity>, deviceId: String): Boolean {
         return try {
@@ -158,27 +153,5 @@ class SmsWorker(
         val baseDelay = 60000L // 1 minute
         val maxDelay = 6 * 60 * 60 * 1000L // 6 hours
         return min(baseDelay * 2.0.pow(retryCount.toDouble()).toLong(), maxDelay)
-    }
-
-    private fun scheduleNextBatch() {
-        val constraints = Constraints.Builder()
-            .setRequiredNetworkType(NetworkType.CONNECTED)
-            .build()
-
-        val uploadRequest = OneTimeWorkRequestBuilder<SmsWorker>()
-            .setConstraints(constraints)
-            .setBackoffCriteria(
-                BackoffPolicy.EXPONENTIAL,
-                WorkRequest.MIN_BACKOFF_MILLIS,
-                java.util.concurrent.TimeUnit.MILLISECONDS
-            )
-            .build()
-
-        WorkManager.getInstance(applicationContext)
-            .enqueueUniqueWork(
-                "sms_upload",
-                ExistingWorkPolicy.KEEP,
-                uploadRequest
-            )
     }
 }

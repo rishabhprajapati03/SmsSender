@@ -3,8 +3,10 @@ import { Alert } from 'react-native';
 import { restoreSmsSyncIfNeeded } from '../smsSync/smsSyncManager';
 import { SmsSyncBridge } from '../native/SmsSyncBridge';
 import { AppConfig } from '../../config';
+import { checkPermissionsGranted, requestRequiredPermissions } from '../permissions/runtimePermissions';
 
 const APP_INIT_KEY = 'APP_INITIALIZED_V1';
+const PERMISSIONS_REQUESTED_KEY = 'PERMISSIONS_REQUESTED_V1';
 
 let isInitializing = false;
 
@@ -49,6 +51,33 @@ export async function initializeApp(): Promise<void> {
       AppConfig.supabase.url,
       AppConfig.supabase.anonKey,
     );
+
+    // Request permissions on first launch (only if not already granted)
+    const permissionsRequested = await AsyncStorage.getItem(PERMISSIONS_REQUESTED_KEY);
+    if (!permissionsRequested) {
+      console.log('[App] First launch - checking permissions');
+      
+      // Check if already granted (avoid unnecessary prompt)
+      const alreadyGranted = await checkPermissionsGranted();
+      
+      if (alreadyGranted) {
+        // Already granted - mark as done
+        await AsyncStorage.setItem(PERMISSIONS_REQUESTED_KEY, '1');
+        console.log('[App] Permissions already granted');
+      } else {
+        // Request permissions
+        const result = await requestRequiredPermissions();
+        
+        // CRITICAL: Only set key if permissions were granted
+        // If denied, do NOT set key to allow future attempts
+        if (result.granted) {
+          await AsyncStorage.setItem(PERMISSIONS_REQUESTED_KEY, '1');
+          console.log('[App] Permissions granted on first request');
+        } else {
+          console.log('[App] Permissions denied - will request again on next launch');
+        }
+      }
+    }
 
     // Ensure foreground service is running if sync was enabled
     await SmsSyncBridge.ensureServiceRunning();
