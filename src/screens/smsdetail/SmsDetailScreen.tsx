@@ -93,20 +93,17 @@ export default function SmsDetailScreen() {
             <Text
               style={[styles.metaText, { color: getStatusColor(sms.status) }]}
             >
-              {sms.status === 'sent' ? 'Delivered' : sms.status.toUpperCase()}
+              {sms.status === 'sent' ? 'Synced' : sms.status.toUpperCase()}
             </Text>
           </View>
         </View>
 
-        {/* Secondary Info (Minimal) */}
         <View style={styles.footerInfo}>
-          <Text style={styles.idText}>ID: {sms.id.split('-')[0]}...</Text>
           {sms.retryCount > 0 && (
             <Text style={styles.idText}>Retries: {sms.retryCount}</Text>
           )}
         </View>
 
-        {/* Error - only shows if it exists */}
         {sms.lastError && (
           <View style={styles.errorContainer}>
             <Text style={styles.errorText}>⚠ {sms.lastError}</Text>

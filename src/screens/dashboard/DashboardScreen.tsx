@@ -147,15 +147,13 @@ export default function DashboardScreen() {
     );
   }
 
-  /* UI */
-
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       {/* SERVICE STATUS */}
       <View style={[styles.card, enabled && styles.cardActive]}>
         <View style={styles.row}>
           <View style={styles.flex}>
-            <Text style={styles.cardTitle}>SmsSync Service</Text>
+            <Text style={styles.cardTitle}>Sync Service</Text>
             <Text
               style={[
                 styles.statusText,

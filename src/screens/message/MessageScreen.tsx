@@ -114,12 +114,6 @@ export default function MessagesScreen() {
                 <Text style={styles.sender} numberOfLines={1}>
                   {item.sender || 'Unknown'}
                 </Text>
-                <Text style={styles.time}>
-                  {new Date(item.timestamp).toLocaleTimeString([], {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
-                </Text>
               </View>
 
               <Text numberOfLines={2} style={styles.bodyText}>
