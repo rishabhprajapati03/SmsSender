@@ -6,16 +6,12 @@ import { useNavigation } from '@react-navigation/native';
 import MessagesScreen from '../screens/message/MessageScreen';
 import SmsDetailScreen from '../screens/smsdetail/SmsDetailScreen';
 
-/* TYPES */
-
 export type MessagesStackParamList = {
   Messages: undefined;
   SmsDetail: { sms: any };
 };
 
 const Stack = createNativeStackNavigator<MessagesStackParamList>();
-
-/* HEADER COMPONENT */
 
 type HeaderProps = {
   title: string;
@@ -41,13 +37,10 @@ const Header = memo(({ title, showBack }: HeaderProps) => {
 
       <Text style={styles.title}>{title}</Text>
 
-      {/* Right spacer for perfect centering */}
       <View style={styles.sideContainer} />
     </View>
   );
 });
-
-/* STATIC OPTIONS */
 
 const messagesHeaderOptions = {
   header: () => <Header title="Messages" />,
@@ -56,8 +49,6 @@ const messagesHeaderOptions = {
 const detailHeaderOptions = {
   header: () => <Header title="Message" showBack />,
 };
-
-/* STACK */
 
 export default function MessagesStack() {
   return (
@@ -76,8 +67,6 @@ export default function MessagesStack() {
     </Stack.Navigator>
   );
 }
-
-/* STYLES */
 
 const styles = StyleSheet.create({
   header: {

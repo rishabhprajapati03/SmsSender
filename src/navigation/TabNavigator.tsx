@@ -7,9 +7,9 @@ import {
 
 import Ionicons from '@react-native-vector-icons/ionicons';
 
-import DashboardStack from './DashboardStack';
 import MessagesStack from './MessagesStack';
-import SettingsStack from './SettingsStack';
+import DashboardScreen from '../screens/dashboard/DashboardScreen';
+import SettingsScreen from '../screens/settings/SettingsScreen';
 
 /* TYPES */
 
@@ -106,7 +106,7 @@ export default function TabNavigator() {
       <Tab.Navigator>
         <Tab.Screen
           name="DashboardTab"
-          component={DashboardStack}
+          component={DashboardScreen}
           options={{
             tabBarLabel: 'Home',
             ...buildScreenOptions('DashboardTab'),
@@ -124,7 +124,7 @@ export default function TabNavigator() {
 
         <Tab.Screen
           name="SettingsTab"
-          component={SettingsStack}
+          component={SettingsScreen}
           options={{
             tabBarLabel: 'Settings',
             ...buildScreenOptions('SettingsTab'),
