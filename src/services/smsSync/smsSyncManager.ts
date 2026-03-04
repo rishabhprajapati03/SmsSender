@@ -2,15 +2,13 @@ import { SmsSyncBridge } from '../native/SmsSyncBridge';
 import { Alert, Linking } from 'react-native';
 import { requestRequiredPermissions } from '../permissions/runtimePermissions';
 
-/* STATE */
-
 let cachedEnabled = false;
 
 /* START */
 
 export async function startSmsSync(): Promise<void> {
   try {
-    console.log('[SmsSync] Starting...');
+    console.log('SmsSync Starting...');
 
     // Request runtime permissions first
     const permissionResult = await requestRequiredPermissions();
@@ -26,13 +24,13 @@ export async function startSmsSync(): Promise<void> {
               text: 'Open Settings',
               onPress: () => Linking.openSettings(),
             },
-          ]
+          ],
         );
       } else {
         Alert.alert(
           'Permissions Required',
           'Permissions are required to enable SMS Sync. Please grant all requested permissions.',
-          [{ text: 'OK' }]
+          [{ text: 'OK' }],
         );
       }
 
@@ -44,9 +42,9 @@ export async function startSmsSync(): Promise<void> {
 
     cachedEnabled = true;
 
-    console.log('[SmsSync] Started');
+    console.log('SmsSync Started');
   } catch (error) {
-    console.error('[SmsSync] Start failed:', error);
+    console.error('SmsSync Start failed:', error);
     cachedEnabled = false;
     throw error;
   }
@@ -56,15 +54,15 @@ export async function startSmsSync(): Promise<void> {
 
 export async function stopSmsSync(): Promise<void> {
   try {
-    console.log('[SmsSync] Stopping...');
+    console.log('SmsSync Stopping...');
 
     await SmsSyncBridge.disableSync();
 
     cachedEnabled = false;
 
-    console.log('[SmsSync] Stopped');
+    console.log('SmsSync Stopped');
   } catch (error) {
-    console.error('[SmsSync] Stop failed:', error);
+    console.error('SmsSync Stop failed:', error);
     cachedEnabled = false;
   }
 }
@@ -88,7 +86,7 @@ export async function getSmsSyncState(): Promise<{
       startedAt: enabled ? Date.now() : null,
     };
   } catch (error) {
-    console.error('[SmsSync] Get state failed:', error);
+    console.error('SmsSync Get state failed:', error);
     return { enabled: false, startedAt: null };
   }
 }
@@ -101,12 +99,12 @@ export async function restoreSmsSyncIfNeeded(): Promise<boolean> {
     cachedEnabled = enabled;
 
     if (enabled) {
-      console.log('[SmsSync] Already enabled, no restore needed');
+      console.log('SmsSync Already enabled, no restore needed');
     }
 
     return enabled;
   } catch (error) {
-    console.error('[SmsSync] Restore check failed:', error);
+    console.error('SmsSync Restore check failed:', error);
     return false;
   }
 }

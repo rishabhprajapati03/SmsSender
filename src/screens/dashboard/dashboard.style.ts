@@ -138,11 +138,11 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#C7D2FE',
+    borderColor: '#fec7c7',
   },
 
   retryButtonText: {
-    color: '#4338CA',
+    color: '#ca3838',
     fontWeight: '600',
     fontSize: 14,
   },
