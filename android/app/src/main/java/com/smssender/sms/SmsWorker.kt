@@ -23,6 +23,7 @@ class SmsWorker(
         private const val TIMEOUT_MS = 30000
         private const val PREFS_NAME = "sms_sync_prefs"
         private const val KEY_DEVICE_ID = "device_id"
+        private const val STALE_SYNCING_THRESHOLD_MS = 5 * 60 * 1000L // 5 minutes
     }
 
   override suspend fun doWork(): Result {
@@ -31,6 +32,14 @@ class SmsWorker(
 
         val db = SmsDatabase.getInstance(applicationContext)
         val dao = db.smsDao()
+
+        // Recover messages stuck in "syncing" due to process death
+        val staleThreshold = System.currentTimeMillis() - STALE_SYNCING_THRESHOLD_MS
+        val recovered = dao.recoverStaleSyncing(staleThreshold)
+        if (recovered > 0) {
+            Log.w(TAG, "Recovered $recovered messages stuck in syncing")
+        }
+
         val deviceId = getDeviceId()
 
         var totalProcessed = 0

@@ -17,8 +17,7 @@ import {
 } from '../../services/smsSync/smsSyncManager';
 
 import { getStats } from '../../services/stats/statsService';
-import { subscribeToQueue } from '../../services/queue/queueManager';
-import { importInbox } from '../../services/sms/smsImporter';
+
 import { syncQueue } from '../../services/sync/syncManager';
 import { styles } from './dashboard.style';
 
@@ -27,7 +26,7 @@ export default function DashboardScreen() {
   const [running, setRunning] = useState(false);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<any>(null);
-  const [importing, setImporting] = useState(false);
+
 
   const loadingRef = useRef(false);
 
@@ -60,7 +59,6 @@ export default function DashboardScreen() {
   useEffect(() => {
     loadData();
 
-    const unsubQueue = subscribeToQueue(loadData);
     const interval = setInterval(() => {
       loadData();
     }, 3000);
@@ -69,7 +67,6 @@ export default function DashboardScreen() {
     });
 
     return () => {
-      unsubQueue();
       clearInterval(interval);
       appSub.remove();
     };
@@ -96,33 +93,7 @@ export default function DashboardScreen() {
     await loadData();
   }
 
-  /* MANUAL IMPORT */
 
-  async function handleImportInbox() {
-    Alert.alert(
-      'Import Old Messages',
-      'This will import existing SMS into the queue. Continue?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Import',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              setImporting(true);
-              const count = await importInbox(1000);
-              Alert.alert('Done', `Imported ${count} messages`);
-            } catch {
-              Alert.alert('Error', 'Import failed');
-            } finally {
-              setImporting(false);
-              loadData();
-            }
-          },
-        },
-      ],
-    );
-  }
 
   /* RETRY FAILED */
 
@@ -186,37 +157,12 @@ export default function DashboardScreen() {
       {/* SYNC INFO */}
       <View style={styles.card}>
         <Text style={styles.sectionLabel}>Sync Details</Text>
-        <Info
-          label="Last Sync"
-          value={
-            stats?.lastSync
-              ? new Date(stats.lastSync).toLocaleTimeString([], {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })
-              : 'Never'
-          }
-        />
         <Info label="Total Processed" value={stats?.sent || 0} />
-        {stats?.lastError && (
-          <View style={styles.errorBox}>
-            <Text style={styles.errorText}>{stats.lastError}</Text>
-          </View>
-        )}
       </View>
 
       {/* ACTIONS */}
       <View style={styles.card}>
         <Text style={styles.sectionLabel}>Quick Actions</Text>
-        <TouchableOpacity
-          style={styles.importButton}
-          onPress={handleImportInbox}
-          disabled={importing}
-        >
-          <Text style={styles.importButtonText}>
-            {importing ? 'Importing...' : 'Import Device Inbox'}
-          </Text>
-        </TouchableOpacity>
 
         {stats?.failed > 0 && (
           <TouchableOpacity

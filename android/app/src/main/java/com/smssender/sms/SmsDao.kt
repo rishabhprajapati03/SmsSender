@@ -40,4 +40,11 @@ WHERE id IN (
 suspend fun deleteSent(limit: Int): Int
     @Query("DELETE FROM sms_queue")
     suspend fun deleteAll()
+
+    @Query("""
+        UPDATE sms_queue 
+        SET status = 'pending', lastError = 'Recovered from stale syncing' 
+        WHERE status = 'syncing' AND lastTriedAt < :staleThreshold
+    """)
+    suspend fun recoverStaleSyncing(staleThreshold: Long): Int
 }

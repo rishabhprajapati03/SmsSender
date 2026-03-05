@@ -16,29 +16,6 @@ export interface QueuedSms {
   nextRetryAt?: number;
 }
 
-type QueueListener = () => void;
-const listeners = new Set<QueueListener>();
-
-export function subscribeToQueue(fn: QueueListener): () => void {
-  listeners.add(fn);
-  return () => listeners.delete(fn);
-}
-
-function notifyListeners() {
-  listeners.forEach(fn => {
-    try {
-      fn();
-    } catch (e) {
-      console.error('[Queue] Listener error:', e);
-    }
-  });
-}
-
-function normalizeId(id: any): string | null {
-  if (id === null || id === undefined) return null;
-  return String(id);
-}
-
 export async function addToQueue(sms: {
   id: string | number;
   sender: string;
@@ -46,7 +23,7 @@ export async function addToQueue(sms: {
   timestamp: number;
 }): Promise<void> {
   try {
-    const id = normalizeId(sms.id);
+    const id = sms.id === null || sms.id === undefined ? null : String(sms.id);
 
     if (!id) {
       console.warn('[Queue] SMS has no ID, skipping');
@@ -58,8 +35,6 @@ export async function addToQueue(sms: {
     const timestamp = Number(sms.timestamp) || Date.now();
 
     await SmsSyncBridge.addToQueue(id, sender, body, timestamp);
-
-    notifyListeners();
 
     console.log('[Queue] Added:', id);
   } catch (error) {
@@ -102,7 +77,6 @@ export async function getQueueStats(): Promise<{
 export async function clearQueue(): Promise<void> {
   try {
     await SmsSyncBridge.clearQueue();
-    notifyListeners();
   } catch (error) {
     console.error('[Queue] Clear failed:', error);
     throw error;
@@ -111,9 +85,7 @@ export async function clearQueue(): Promise<void> {
 
 export async function clearSentMessages(): Promise<number> {
   try {
-    const removed = await SmsSyncBridge.clearSentMessages();
-    notifyListeners();
-    return removed;
+    return await SmsSyncBridge.clearSentMessages();
   } catch (error) {
     console.error('[Queue] Clear sent failed:', error);
     throw error;

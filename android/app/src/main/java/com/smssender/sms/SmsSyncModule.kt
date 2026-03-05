@@ -3,7 +3,6 @@ package com.smssender.sms
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Build
 import androidx.core.content.ContextCompat
 import androidx.work.*
@@ -319,86 +318,7 @@ class SmsSyncModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
         }
     }
 
-    @ReactMethod
-    fun importExistingSms(limit: Int, promise: Promise) {
-        CoroutineScope(Dispatchers.Main).launch {
-            try {
-                if (!PermissionUtils.hasAllRequiredPermissions(reactApplicationContext)) {
-                    promise.reject("PERMISSION_DENIED", "Required permissions not granted")
-                    return@launch
-                }
 
-                val imported = withContext(Dispatchers.IO) {
-                    importSmsFromInbox(limit)
-                }
-
-                // Trigger upload after import
-                triggerUpload()
-
-                promise.resolve(imported)
-            } catch (e: Exception) {
-                promise.reject("IMPORT_ERROR", e.message, e)
-            }
-        }
-    }
-
-    private suspend fun importSmsFromInbox(limit: Int): Int {
-        val db = SmsDatabase.getInstance(reactApplicationContext)
-        val dao = db.smsDao()
-
-        val uri = Uri.parse("content://sms/inbox")
-        val projection = arrayOf("_id", "address", "body", "date")
-        val sortOrder = "date DESC"
-
-        val cursor = reactApplicationContext.contentResolver.query(
-            uri,
-            projection,
-            null,
-            null,
-            sortOrder
-        )
-
-        var importedCount = 0
-
-        cursor?.use {
-            val idIndex = it.getColumnIndex("_id")
-            val addressIndex = it.getColumnIndex("address")
-            val bodyIndex = it.getColumnIndex("body")
-            val dateIndex = it.getColumnIndex("date")
-
-            var count = 0
-            while (it.moveToNext() && count < limit) {
-                try {
-                    val smsId = it.getString(idIndex) ?: continue
-                    val sender = it.getString(addressIndex) ?: "unknown"
-                    val body = it.getString(bodyIndex) ?: ""
-                    val timestamp = it.getLong(dateIndex)
-
-                    val id = "imported_${smsId}_${timestamp}"
-
-                    val sms = SmsEntity(
-                        id = id,
-                        sender = sender,
-                        body = body,
-                        timestamp = timestamp,
-                        status = "pending"
-                    )
-
-                    val inserted = dao.insert(sms)
-                    if (inserted > 0) {
-                        importedCount++
-                    }
-
-                    count++
-                } catch (e: Exception) {
-                    // Skip this SMS and continue
-                    continue
-                }
-            }
-        }
-
-        return importedCount
-    }
 
     private fun triggerUpload() {
         val constraints = Constraints.Builder()

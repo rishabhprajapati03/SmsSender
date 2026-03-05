@@ -29,7 +29,7 @@ interface SmsSyncModuleInterface {
   clearQueue(): Promise<boolean>;
   clearSentMessages(): Promise<number>;
   saveApiConfig(url: string, key: string): Promise<boolean>;
-  importExistingSms(limit: number): Promise<number>;
+
 }
 
 const { SmsSyncModule } = NativeModules;

@@ -9,7 +9,6 @@ import {
 
 import {
   getQueue,
-  subscribeToQueue,
   type QueuedSms,
 } from '../../services/queue/queueManager';
 
@@ -26,9 +25,8 @@ export default function MessagesScreen() {
   const navigation = useNavigation<any>();
 
   useEffect(() => {
-    const unsub = subscribeToQueue(load);
-
-    return unsub;
+    const interval = setInterval(load, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   /*

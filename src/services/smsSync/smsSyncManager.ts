@@ -2,8 +2,6 @@ import { SmsSyncBridge } from '../native/SmsSyncBridge';
 import { Alert, Linking } from 'react-native';
 import { requestRequiredPermissions } from '../permissions/runtimePermissions';
 
-let cachedEnabled = false;
-
 /* START */
 
 export async function startSmsSync(): Promise<void> {
@@ -40,12 +38,9 @@ export async function startSmsSync(): Promise<void> {
     // Native enableSync() enforces permissions and starts service
     await SmsSyncBridge.enableSync();
 
-    cachedEnabled = true;
-
     console.log('SmsSync Started');
   } catch (error) {
     console.error('SmsSync Start failed:', error);
-    cachedEnabled = false;
     throw error;
   }
 }
@@ -58,20 +53,13 @@ export async function stopSmsSync(): Promise<void> {
 
     await SmsSyncBridge.disableSync();
 
-    cachedEnabled = false;
-
     console.log('SmsSync Stopped');
   } catch (error) {
     console.error('SmsSync Stop failed:', error);
-    cachedEnabled = false;
   }
 }
 
 /* STATUS */
-
-export function isSmsSyncRunning(): boolean {
-  return cachedEnabled;
-}
 
 export async function getSmsSyncState(): Promise<{
   enabled: boolean;
@@ -79,7 +67,6 @@ export async function getSmsSyncState(): Promise<{
 }> {
   try {
     const enabled = await SmsSyncBridge.isSyncEnabled();
-    cachedEnabled = enabled;
 
     return {
       enabled,
@@ -96,7 +83,6 @@ export async function getSmsSyncState(): Promise<{
 export async function restoreSmsSyncIfNeeded(): Promise<boolean> {
   try {
     const enabled = await SmsSyncBridge.isSyncEnabled();
-    cachedEnabled = enabled;
 
     if (enabled) {
       console.log('SmsSync Already enabled, no restore needed');
@@ -107,10 +93,4 @@ export async function restoreSmsSyncIfNeeded(): Promise<boolean> {
     console.error('SmsSync Restore check failed:', error);
     return false;
   }
-}
-
-/* SYNC START TIMESTAMP - Not needed anymore but kept for compatibility */
-
-export async function getSyncStartTimestamp(): Promise<number> {
-  return 0;
 }

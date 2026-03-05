@@ -159,15 +159,4 @@ export const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 14,
   },
-  importButton: {
-    backgroundColor: '#303030',
-    padding: 14,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  importButtonText: {
-    color: '#ffffff',
-    fontWeight: '600',
-    fontSize: 16,
-  },
 });
