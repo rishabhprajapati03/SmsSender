@@ -12,14 +12,14 @@ export const AppConfig = {
     anonKey: rawKey,
   },
   api: {
-    timeout: Number(Config.API_TIMEOUT) || 30000,
+    timeout: 30000,
   },
   queue: {
-    batchSize: Number(Config.QUEUE_BATCH_SIZE) || 20,
-    maxSize: Number(Config.QUEUE_MAX_SIZE) || 10000,
+    batchSize: 20,
+    maxSize:  10000,
   },
   sync: {
-    intervalMs: Number(Config.SYNC_INTERVAL_MS) || 6000,
+    intervalMs: 6000,
   },
 };
 
