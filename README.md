@@ -53,17 +53,7 @@ The application runs a persistent background service that listens for new SMS me
 
 The application combines React Native UI with native Android modules to ensure reliable background execution.
 
-React Native UI
-↓
-Native Bridge (SmsSyncModule)
-↓
-SMS BroadcastReceiver
-↓
-Room Database Queue
-↓
-WorkManager Background Worker
-↓
-Supabase REST API
+React Native UI -> Native Bridge (SmsSyncModule) -> SMS BroadcastReceiver -> Room Database Queue -> WorkManager Background Worker -> Supabase REST API
 
 
 
