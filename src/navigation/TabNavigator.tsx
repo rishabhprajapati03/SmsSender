@@ -10,6 +10,7 @@ import Ionicons from '@react-native-vector-icons/ionicons';
 import MessagesStack from './MessagesStack';
 import DashboardScreen from '../screens/dashboard/DashboardScreen';
 import SettingsScreen from '../screens/settings/SettingsScreen';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 /* TYPES */
 
@@ -102,6 +103,7 @@ const buildScreenOptions = (
 
 export default function TabNavigator() {
   return (
+    <SafeAreaProvider>
     <NavigationContainer linking={linking}>
       <Tab.Navigator>
         <Tab.Screen
@@ -132,5 +134,6 @@ export default function TabNavigator() {
         />
       </Tab.Navigator>
     </NavigationContainer>
+    </SafeAreaProvider>
   );
 }
