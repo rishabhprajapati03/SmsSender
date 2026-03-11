@@ -161,10 +161,11 @@ export default function DashboardScreen() {
       </View>
 
       {/* ACTIONS */}
+        {stats?.failed > 0 && (
+
       <View style={styles.card}>
         <Text style={styles.sectionLabel}>Quick Actions</Text>
 
-        {stats?.failed > 0 && (
           <TouchableOpacity
             style={styles.retryButton}
             onPress={handleRetryFailed}
@@ -173,8 +174,9 @@ export default function DashboardScreen() {
               Retry Failed ({stats.failed})
             </Text>
           </TouchableOpacity>
-        )}
       </View>
+        )}
+
     </ScrollView>
   );
 }
